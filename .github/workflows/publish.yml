@@ -1,16 +1,15 @@
-name: Publish
+name: Publish to npmjs.org
 on: workflow_dispatch
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      # Setup .npmrc file to publish to npm
       - uses: actions/setup-node@v3
         with:
           registry-url: 'https://registry.npmjs.org'      
       - run: npm ci
       - run: npm run build
-      - run: npm publish --access public --dry-run
+      - run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}   

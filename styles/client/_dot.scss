@@ -1,0 +1,28 @@
+/// <reference path="../weavy.scss" />
+
+// Notification dot
+
+.weavy-dot {
+    position: relative;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: $client-icon-size * .2 - rem(.0625);
+        right: $client-icon-size * .2 - rem(.0625);
+        width: $client-icon-size * .2 - rem(.0625);
+        height: $client-icon-size * .2 - rem(.0625);
+        background-color: $deep-orange;
+        border-radius: 50%;
+    }
+
+    &.weavy-pulse::after {
+        animation: weavy-pulse ($md-animation-duration * 2) $md-animation-curve-default;
+    }
+}
+
+@keyframes weavy-pulse {
+    50% {
+        transform: scale(3);
+    }
+}
