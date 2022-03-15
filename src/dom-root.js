@@ -237,7 +237,7 @@ class WeavyRoot {
           if (response.ok && contentType === "text/css") {
             return response.text().then((clientCss) => {
   
-              if (this.supportsConstructableStylesheets) {
+              if (WeavyRoot.supportsConstructableStylesheets) {
                 var cSheet = new CSSStyleSheet();
                 cSheet.replaceSync(clientCss);
                 stylesheetObj.stylesheet = cSheet;
@@ -316,14 +316,16 @@ class WeavyRoot {
   #applyStyleSheets() {
     let styleSheets = this.#styleSheets.map((styleSheetObj) => styleSheetObj.stylesheet).filter((x) => x);
 
-    if (this.supportsConstructableStylesheets) {
+    if (WeavyRoot.supportsConstructableStylesheets) {
       this.#weavy.debug("CSS: setting adopted stylesheets", this.dom);
       this.dom.adoptedStyleSheets = [...this.dom.adoptedStyleSheets, ...styleSheets];
     } else {
       this.#weavy.debug("CSS: cloning stylesheets", this.dom);
       styleSheets.forEach((styleSheet) => {
-        if (!(styleSheet.href && this.dom.querySelector("style[href='" + styleSheet.href + "']"))) {
-          this.dom.appendChild(styleSheet.ownerNode.cloneNode(true));
+        if (styleSheet.href && !this.dom.querySelector("style[href='" + styleSheet.href + "']")) {
+          if (styleSheet.ownerNode) {
+            this.dom.appendChild(styleSheet.ownerNode.cloneNode(true));
+          }
         }
       });
     }
@@ -337,7 +339,7 @@ class WeavyRoot {
    */
   #addCss(cssText) {
     if (cssText) {
-      if (this.supportsConstructableStylesheets) {
+      if (WeavyRoot.supportsConstructableStylesheets) {
         var sheet = new CSSStyleSheet();
         sheet.replaceSync(cssText);
         this.#styleSheets.push({ stylesheet: sheet });

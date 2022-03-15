@@ -72,7 +72,7 @@ module.exports = (env) => {
       })
     ],
     module: {
-      //noParse: /.*@microsoft\/signalr/,
+      noParse: /.*@microsoft\/signalr/,
       rules: [
         {
           test: /\.[j]s$/,
@@ -119,6 +119,15 @@ module.exports = (env) => {
     },
     resolve: {
       extensions: ['.ts', '.js', '.json'],
+      alias: {
+        "@microsoft/signalr$": "@microsoft/signalr/dist/browser/signalr.min.js"
+      },
+      fallback: {
+        http: false,
+        https: false,
+        url: false,
+        util: false
+      }
     },
   };
 
