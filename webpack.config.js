@@ -114,7 +114,7 @@ module.exports = (env) => {
     },
     optimization: {
       minimizer: [new TerserPlugin({
-        extractComments: true,
+        extractComments: false,
       })],
     },
     resolve: {
@@ -123,12 +123,22 @@ module.exports = (env) => {
         "@microsoft/signalr$": "@microsoft/signalr/dist/browser/signalr.min.js"
       },
       fallback: {
+        // exclude SignalR node fallbacks 
         http: false,
         https: false,
         url: false,
         util: false
       }
     },
+    externals: {
+      // exclude signalR node imports
+      "abort-controller": "var null",
+      "eventsource": "var null",
+      "tough-cookie": "var null",
+      "fetch-cookie": "var null",
+      "node-fetch": "var null",
+      "ws": "var null"
+    }
   };
 
   const devConfig = Object.assign({}, config, {

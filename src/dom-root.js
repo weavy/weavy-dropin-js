@@ -171,7 +171,7 @@ class WeavyRoot {
     // Get stylesheet from head
     for (let sheet of document.styleSheets) {
       if (sheet instanceof CSSStyleSheet) {
-        if (sheet.cssRules[0] instanceof CSSNamespaceRule && sheet.cssRules[0].prefix === "weavy") {
+        if (sheet.cssRules && sheet.cssRules[0] instanceof CSSNamespaceRule && sheet.cssRules[0].prefix === "weavy") {
           weavy.debug("CSS: found external stylesheet");
           if (WeavyRoot.supportsConstructableStylesheets) {
             var cSheet = new CSSStyleSheet();
@@ -210,6 +210,10 @@ class WeavyRoot {
      * @returns {WeavyRoot}
      **/
     this.triggerEvent("on:root-create", this);
+
+    if (!this.#styleSheets.length && !this.#css && (!eventParent || eventParent === weavy)) {
+      weavy.error("CSS: No styles provided! Provide a stylesheet using the weavy namespace or add styles in options.");
+    }
 
     queueMicrotask(() => this.triggerEvent("after:root-create", this));
   }
