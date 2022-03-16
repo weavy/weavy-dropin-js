@@ -44,7 +44,7 @@ module.exports = (env) => {
       "weavy-dropin": {
         import: [
           './styles/weavy-dropin.scss',
-          './weavy-dropin.js', // Only this will be exported in the library
+          './weavy-dropin.js',
         ],
         library: {
           name: { root: 'Weavy' },
@@ -101,7 +101,6 @@ module.exports = (env) => {
             filename: '[name].css'
           },
           use: [
-            // Compiles Sass to CSS
             {
               loader: "sass-loader",
               options: {
@@ -123,7 +122,6 @@ module.exports = (env) => {
         "@microsoft/signalr$": "@microsoft/signalr/dist/browser/signalr.min.js"
       },
       fallback: {
-        // exclude SignalR node fallbacks 
         http: false,
         https: false,
         url: false,
@@ -131,7 +129,6 @@ module.exports = (env) => {
       }
     },
     externals: {
-      // exclude signalR node imports
       "abort-controller": "var null",
       "eventsource": "var null",
       "tough-cookie": "var null",
