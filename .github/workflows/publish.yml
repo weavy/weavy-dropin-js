@@ -1,4 +1,4 @@
-name: Publish to npmjs.org
+name: Publish npm package
 on: workflow_dispatch
 jobs:
   publish:
@@ -10,7 +10,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'      
       - run: npm ci
       - run: npm run build
-      - run: npm run pack --pack-destination ./dist
+      - run: npm pack --pack-destination ./dist
       - uses: actions/upload-artifact@v3
         with:
           name: npm-package
