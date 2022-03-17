@@ -13,7 +13,7 @@ module.exports = (env) => {
   const packageFilePath = path.resolve(__dirname, './package.json');
   const versionFilePath = path.resolve(__dirname, '../../Directory.Build.props');
 
-  if (env.weavyversion) {
+  if (env?.weavyversion) {
     weavyVersion = env.weavyversion;
   }
 
@@ -67,12 +67,11 @@ module.exports = (env) => {
     plugins: [
       new ESLintPlugin(),
       new webpack.DefinePlugin({
-        WEAVY_PRODUCTION: JSON.stringify(env.production ? true : false),
+        WEAVY_PRODUCTION: JSON.stringify(env?.production ? true : false),
         WEAVY_VERSION: JSON.stringify(weavyVersion)
       })
     ],
     module: {
-      noParse: /.*@microsoft\/signalr/,
       rules: [
         {
           test: /\.[j]s$/,
@@ -80,7 +79,7 @@ module.exports = (env) => {
             path.resolve(__dirname, "scripts/")
           ],
           exclude: [
-              /(node_modules)/
+              /node_modules/
           ],
           use: {
             loader: 'babel-loader'
@@ -95,7 +94,7 @@ module.exports = (env) => {
         },
         {
           test: /\.scss$/,
-          exclude: /(node_modules)/,
+          exclude: /node_modules/,
           type: 'asset/resource',
           generator: {
             filename: '[name].css'
@@ -122,6 +121,7 @@ module.exports = (env) => {
         "@microsoft/signalr$": "@microsoft/signalr/dist/browser/signalr.min.js"
       },
       fallback: {
+        // exclude SignalR node fallbacks 
         http: false,
         https: false,
         url: false,
@@ -129,6 +129,7 @@ module.exports = (env) => {
       }
     },
     externals: {
+      // exclude signalR node imports
       "abort-controller": "var null",
       "eventsource": "var null",
       "tough-cookie": "var null",
@@ -143,5 +144,5 @@ module.exports = (env) => {
     devtool: 'inline-source-map',
   });
 
-  return env.production ? config : devConfig;
+  return env?.production ? config : devConfig;
 }
