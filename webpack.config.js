@@ -51,12 +51,6 @@ module.exports = (env) => {
           type: 'umd',
           export: 'default'
         }
-      },
-      common: {
-        import: './src/common/',
-        library: {
-          type: 'umd',
-        }
       }
     },
     output: {
@@ -67,6 +61,7 @@ module.exports = (env) => {
     plugins: [
       new ESLintPlugin(),
       new webpack.DefinePlugin({
+        WEAVY_DEVELOPMENT: JSON.stringify(env?.development ? true : false),
         WEAVY_PRODUCTION: JSON.stringify(env?.production ? true : false),
         WEAVY_VERSION: JSON.stringify(weavyVersion)
       })

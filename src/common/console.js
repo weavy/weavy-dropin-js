@@ -1,3 +1,5 @@
+/* global WEAVY_DEVELOPMENT */
+
 // LOGGING FUNCTIONS
 
 // Weavy colors
@@ -94,7 +96,6 @@ var WeavyConsole = function (context, options) {
     * @example
     * weavy.console.logging = {
     *     log: true,
-    *     debug: true,
     *     info: true,
     *     warn: true,
     *     error: true
@@ -109,7 +110,6 @@ var WeavyConsole = function (context, options) {
     * @type {Object|boolean}
     * @property {string} color - A hex color to use for id. A random color will be chosen if omitted.
     * @property {boolean} log=true - Enable log messages in console
-    * @property {boolean} debug=true - Enable debug messages in console
     * @property {boolean} info=true - Enable info messages in console
     * @property {boolean} warn=true - Enable warn messages in console
     * @property {boolean} error=true - Enable error messages in console
@@ -133,27 +133,31 @@ var WeavyConsole = function (context, options) {
                 _color = _uniqueColor;
             }
 
-            
-            // Turn on/off logging
-            this.log = _options === true || _options.log ? colorLog(window.console.log, _name, _color) : noop;
-            this.debug = _options === true || _options.debug ? colorLog(window.console.debug, _name, _color) : noop;
-            this.info = _options === true || _options.info ? colorLog(window.console.info, _name, _color) : noop;
-            this.warn = _options === true || _options.warn ? colorLog(window.console.warn, _name, _color) : noop;
-            this.error = _options === true || _options.error ? colorLog(window.console.error, _name, _color) : noop;
-            
-            let debugging = _options === true || _options.debug;
+            // Level grouping according to https://console.spec.whatwg.org/#loglevel-severity
 
+            // Turn on/off logging
+            let levelLog = _options === true || _options.log;
+            let levelInfo = _options === true || _options.info;
+            let levelWarn = _options === true || _options.warn;
+            let levelError = _options === true || _options.error;
+
+            this.log = levelLog ? colorLog(window.console.log, _name, _color) : noop;
+            this.debug = levelLog ? colorLog(window.console.debug, _name, _color) : noop;
+            this.info = levelInfo ? colorLog(window.console.info, _name, _color) : noop;
+            this.warn = levelWarn ? colorLog(window.console.warn, _name, _color) : noop;
+            this.error = levelError ? colorLog(window.console.error, _name, _color) : noop;
+            
             // Additional debug logging
-            this.assert = debugging ? Function.prototype.bind.call(console.assert, console) : noop;
-            this.count = debugging ? Function.prototype.bind.call(console.count, console) : noop;
-            this.countReset = debugging ? Function.prototype.bind.call(console.countReset, console) : noop;
-            this.dir = debugging ? Function.prototype.bind.call(console.dir, console) : noop;
-            this.dirxml = debugging ? Function.prototype.bind.call(console.dirxml, console) : noop;
-            this.table = debugging ? Function.prototype.bind.call(console.table, console) : noop;
-            this.time = debugging ? Function.prototype.bind.call(console.time, console) : noop;
-            this.timeEnd = debugging ? Function.prototype.bind.call(console.timeEnd, console) : noop;
-            this.timeLog = debugging ? Function.prototype.bind.call(console.timeLog, console) : noop;
-            this.trace = debugging ? Function.prototype.bind.call(console.trace, console) : noop;
+            this.assert = levelError ? Function.prototype.bind.call(console.assert, console) : noop;
+            this.count = levelLog ? Function.prototype.bind.call(console.count, console) : noop;
+            this.countReset = levelLog ? Function.prototype.bind.call(console.countReset, console) : noop;
+            this.dir = levelLog ? Function.prototype.bind.call(console.dir, console) : noop;
+            this.dirxml = levelLog ? Function.prototype.bind.call(console.dirxml, console) : noop;
+            this.table = levelLog ? Function.prototype.bind.call(console.table, console) : noop;
+            this.time = levelLog ? Function.prototype.bind.call(console.time, console) : noop;
+            this.timeEnd = levelLog ? Function.prototype.bind.call(console.timeEnd, console) : noop;
+            this.timeLog = levelLog ? Function.prototype.bind.call(console.timeLog, console) : noop;
+            this.trace = levelLog ? Function.prototype.bind.call(console.trace, console) : noop;
 
             // Additional functions
             this.clear = Function.prototype.bind.call(console.clear, console);
@@ -174,7 +178,6 @@ var WeavyConsole = function (context, options) {
  * Weavy.defaults.console = {
  *     color: true,
  *     log: true,
- *     debug: true,
  *     info: true,
  *     warn: true,
  *     error: true
@@ -184,15 +187,13 @@ var WeavyConsole = function (context, options) {
  * @memberof WeavyConsole
  * @type {Object}
  * @property {boolean} log=true - Enable log messages in console
- * @property {boolean} debug=false - Enable debug messages in console
  * @property {boolean} info=true - Enable info messages in console
  * @property {boolean} warn=true - Enable warn messages in console
  * @property {boolean} error=true - Enable error messages in console
  */
 WeavyConsole.defaults = {
     color: true,
-    log: true,
-    debug: true,
+    log: WEAVY_DEVELOPMENT,
     info: true,
     warn: true,
     error: true

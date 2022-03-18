@@ -418,17 +418,17 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
           // If no url is set yet, set an url
           frame.src = frameUrl;
           if (method === "get") {
-            weavy.info("sendToFrame using src");
+            weavy.debug("sendToFrame using src");
             // No need to send a form since data is appended to the url
             return;
           }
         } else if (frame.src && method === "get") {
-          weavy.info("sendToFrame using window.open");
+          weavy.debug("sendToFrame using window.open");
           window.open(frameUrl, frame.name);
           return;
         }
 
-        weavy.info("sendToFrame using form");
+        weavy.debug("sendToFrame using form");
 
         // Create a form to send to the frame
         var requestForm = document.createElement("form");
@@ -504,7 +504,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   panel.open = function (destination, noHistory) {
 
     return weavy.whenReady().then(function () {
-      weavy.info("openPanel", panel.panelId + (destination ? " " + destination : ""), noHistory ? "no history" : "with history");
+      weavy.log("openPanel", panel.panelId + (destination ? " " + destination : ""), noHistory ? "no history" : "with history");
 
       if (!panel.node.dataset.persistent && !weavy.authentication.isAuthorized()) {
         return Promise.reject(new Error("Unauthorized, can't open panel " + panel.panelId));

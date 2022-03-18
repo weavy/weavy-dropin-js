@@ -1,8 +1,10 @@
 import * as signalR from "@microsoft/signalr";
+import WeavyConsole from "./console";
 
 const HUB_PATH: string = "/hubs/rtm";
 const EVENT_NAMESPACE: string = ".connection";
 
+const console = new WeavyConsole("realtime");
 
 /** Represents a connection to a Weavy realtime signalR hub. */
 export default class Connection {
@@ -29,14 +31,14 @@ export default class Connection {
    * @returns {Promise<void>} - A Promise that resolves when the connection has been successfully established, or rejects with an error.
    */
   async connect(): Promise<void> {
-    console.debug("weavy-realtime:connect")
+    console.debug("connect")
 
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(new URL(HUB_PATH, this.url).toString(), {
         accessTokenFactory: this.tokenFactory
       })
       .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Information)
+      .configureLogging(console.options.info ? signalR.LogLevel.Information : signalR.LogLevel.Warning)
       .build();
 
     this.connection.onclose((error?: Error) => this.triggerHandler("close", error));
@@ -53,7 +55,7 @@ export default class Connection {
    * @param {string} group - The name of the group to subscribe to.         
    */
   async subscribe(group: string) {
-    console.debug("weavy-realtime:subscribe")
+    console.debug("subscribe")
 
     if (!this.connection) {
       throw new Error("You must connect before subscribing!");
@@ -70,7 +72,7 @@ export default class Connection {
    * @param {any[]} args - Arguments used to invoke the server method.         
    */
   async invoke(methodName: string, ...args: any[]) {
-    console.debug("weavy-realtime:invoke:", methodName)
+    console.debug("invoke:", methodName)
 
     if (!this.connection) {
       throw new Error("You must connect before invoking a mothod on the server!");
@@ -87,7 +89,7 @@ export default class Connection {
    * @param {Function} handler - The event handler to be raised.         
    */
   on(name: string, handler: (...args: any[]) => void) {
-    console.debug("weavy-realtime:on")
+    console.debug("on")
 
     if (!this.connection) {
       throw new Error("You must connect before binding events!");
@@ -107,7 +109,7 @@ export default class Connection {
    * @param {Function} handler - The event handler.         
    */
   off(name: string, handler: (...args: any[]) => void) {
-    console.debug("weavy-realtime:off")
+    console.debug("off")
 
     if (!this.connection) {
       throw new Error("You must connect before un-binding events!");
@@ -130,7 +132,7 @@ export default class Connection {
     name = name.endsWith(EVENT_NAMESPACE) ? name : name + EVENT_NAMESPACE;
     let event = new CustomEvent(name, { cancelable: false });
 
-    console.debug("weavy-realtime:triggerHandler", name);
+    console.debug("triggerHandler", name);
 
     this.connectionEvents.forEach((eventHandler) => {
       if (eventHandler.name === name) {

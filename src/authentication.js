@@ -175,7 +175,6 @@ class WeavyAuthentication {
           resolve(false);
           return;
         }
-        console.log("checking jwt provider", typeof _jwtProvider)
 
         if (typeof _jwtProvider === "string") {
           _jwt = _jwtProvider;
@@ -183,20 +182,18 @@ class WeavyAuthentication {
         } else if (typeof _jwtProvider === "function") {
           var resolvedProvider = _jwtProvider();
 
-          console.log("resolvedProvider.then", typeof resolvedProvider.then)
-
           if (typeof resolvedProvider.then === "function") {
             resolvedProvider.then(function (token) {
               _jwt = token;
               resolve(_jwt);
             }, function (reason) {
-              reject("failed to get token from the jwt provider promise:", reason);
+              reject("failed to get token from the jwt factory promise:", reason);
             });
           } else if (typeof resolvedProvider === "string") {
             _jwt = resolvedProvider;
             resolve(_jwt);
           } else {
-            reject("failed to get token from the jwt provider function");
+            reject("failed to get token from the jwt factory function");
           }
         } else {
           reject("jwt option must be a string or a function that returns a promise");
@@ -218,7 +215,7 @@ class WeavyAuthentication {
 
         // Authenticate
         if (_jwtProvider !== undefined) {
-          console.log("authenticate by jwt")
+          console.debug("authenticate by jwt")
           // If JWT is defined, it should always be processed
           WeavyPostal.whenLeader().finally(function () { return validateJwt(); })
         } else if (wvy.context && wvy.context.user) {
@@ -359,12 +356,12 @@ class WeavyAuthentication {
           if (isAuthorized()) {
             // When signed in
             if (user && user.id === -1) {
-              console.log("signed-out");
+              console.info("signed-out");
               alert(wvy.t("You have been signed out.") + reloadLink);
               // User signed out
               state = "signed-out";
             } else if (user && user.id !== _user.id) {
-              console.log("changed-user");
+              console.info("changed-user");
               alert(wvy.t("The signed in user has changed.") + reloadLink)
               // User changed
               state = "changed-user";
@@ -372,7 +369,7 @@ class WeavyAuthentication {
           } else {
             // When signed out
             if (user && user.id !== -1) {
-              console.log("signed-in", originSource);
+              console.info("signed-in", originSource);
 
               // Show a message if the user hasn't loaded a new page
               if (wvy && wvy.context && wvy.context.user && (user.id !== wvy.context.user)) {
@@ -478,14 +475,13 @@ class WeavyAuthentication {
 
       if (_isSigningOut) {
         // Wait for signout to complete
-        console.log("vaildate jwt awaiting sign-out");
         return _whenSignedOut.then(function () { return validateJwt(); });
       } else if (_whenSignedOut.state() !== "pending") {
         // Reset signed out promise
         _whenSignedOut.reset();
       }
 
-      console.log("validating jwt");
+      console.debug("validating jwt");
 
       events.triggerEvent("signing-in");
 

@@ -1,4 +1,4 @@
-/* global WEAVY_VERSION */
+/* global WEAVY_VERSION, WEAVY_DEVELOPMENT */
 
 import WeavyEvents from './common/events';
 import WeavyUtils from './common/utils';
@@ -774,7 +774,16 @@ var Weavy = function () {
       delete serverVersion.groups.build;
 
       if (!WeavyUtils.eqObjects(clientVersion.groups, serverVersion.groups, true)) {
-        weavy.error("Weavy client/server version mismatch! \nclient: " + weavy.version + " \nserver: " + weavy.data.version);
+        let versionMismatchMessage = "Weavy client/server version mismatch! \nclient: " + weavy.version + " \nserver: " + weavy.data.version;
+        
+        let majorMatch = clientVersion.groups.major === serverVersion.groups.major;
+        let minorMatch = clientVersion.groups.minor === serverVersion.groups.minor;
+        
+        if (majorMatch && minorMatch || WEAVY_DEVELOPMENT) {
+          weavy.warn(versionMismatchMessage);
+        } else {
+          weavy.error(versionMismatchMessage);
+        }
       }
     }
 
@@ -1413,13 +1422,6 @@ Weavy.defaults = {
   https: "adaptive", // force, adaptive or default 
   init: true,
   includePlugins: true,
-  logging: {
-    log: true,
-    info: false,
-    debug: false,
-    warn: true,
-    error: true
-  },
   plugins: {
     deeplinks: false
   },

@@ -221,7 +221,7 @@ class WeavyRoot {
   addStyles(options) {
     // get styles from options
     if (options?.css) {
-      this.#weavy.log("CSS: adding custom css");
+      this.#weavy.debug("CSS: adding custom css");
       this.#addCss(options.css);
     }
 
@@ -230,7 +230,7 @@ class WeavyRoot {
       let stylesheets = WeavyUtils.asArray(options.stylesheet);
 
       stylesheets.forEach((stylesheet) => {
-        this.#weavy.log("CSS: fetching stylesheet");
+        this.#weavy.debug("CSS: fetching stylesheet");
         var cssUrl = new URL(stylesheet, window.location.href);
         var whenCss = new WeavyPromise();
         let stylesheetObj = { whenCss: whenCss };
