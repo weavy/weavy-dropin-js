@@ -170,19 +170,23 @@ class WeavyRoot {
     // EXTERNAL STYLES
     // Get stylesheet from head
     for (let sheet of document.styleSheets) {
-      if (sheet instanceof CSSStyleSheet) {
-        if (sheet.cssRules && sheet.cssRules[0] instanceof CSSNamespaceRule && sheet.cssRules[0].prefix === "weavy") {
-          weavy.debug("CSS: found external stylesheet");
-          if (WeavyRoot.supportsConstructableStylesheets) {
-            var cSheet = new CSSStyleSheet();
-            for (let rule of sheet.cssRules) {
-              cSheet.insertRule(rule.cssText, cSheet.cssRules.length);
+      try {
+        if (sheet instanceof CSSStyleSheet) {
+          if (sheet.cssRules && sheet.cssRules[0] instanceof CSSNamespaceRule && sheet.cssRules[0].prefix === "weavy") {
+            weavy.debug("CSS: found external stylesheet");
+            if (WeavyRoot.supportsConstructableStylesheets) {
+              var cSheet = new CSSStyleSheet();
+              for (let rule of sheet.cssRules) {
+                cSheet.insertRule(rule.cssText, cSheet.cssRules.length);
+              }
+              this.#styleSheets.push({ stylesheet: cSheet });
+            } else {
+              this.#styleSheets.push({ stylesheet: sheet });
             }
-            this.#styleSheets.push({ stylesheet: cSheet });
-          } else {
-            this.#styleSheets.push({ stylesheet: sheet });
           }
         }
+      } catch(e) {
+        weavy.warn("Error reading stylesheet:", e);
       }
     }
 
