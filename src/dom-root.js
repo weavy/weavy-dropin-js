@@ -323,17 +323,34 @@ class WeavyRoot {
 
   #applyStyleSheets() {
     let styleSheets = this.#styleSheets.map((styleSheetObj) => styleSheetObj.stylesheet).filter((x) => x);
-
     if (WeavyRoot.supportsConstructableStylesheets) {
       this.#weavy.debug("CSS: setting adopted stylesheets", this.dom);
       this.dom.adoptedStyleSheets = [...this.dom.adoptedStyleSheets, ...styleSheets];
     } else {
       this.#weavy.debug("CSS: cloning stylesheets", this.dom);
       styleSheets.forEach((styleSheet) => {
-        if (styleSheet.href && !this.dom.querySelector("style[href='" + styleSheet.href + "']")) {
-          if (styleSheet.ownerNode) {
-            this.dom.appendChild(styleSheet.ownerNode.cloneNode(true));
+        if (styleSheet.ownerNode) {
+          // Check if stylesheet exists already
+          let isNewLink = styleSheet.href && !this.dom.querySelector("link[rel='stylesheet'][href='" + styleSheet.href + "']");
+          let isNewStyle = !styleSheet.href && !Array.from(this.dom.querySelectorAll("style")).filter((existingStyle) => {
+            try {
+              let matchLength = existingStyle.cssRules.length === styleSheet.cssRules.length;
+              let matchFirstRule = !existingStyle.cssRules.length || existingStyle.cssRules[0].cssText === styleSheet.cssRules[0].cssText;
+              let matchLastRule = !existingStyle.cssRules.length || existingStyle.cssRules[existingStyle.cssRule - 1].cssText === styleSheet.cssRules[existingStyle.cssRule - 1].cssText;
+              return matchLength && matchFirstRule && matchLastRule;
+            } catch(e) {
+              return false;
+            }
+          }).length;
+          if (isNewLink || isNewStyle) {
+            try {
+              this.dom.appendChild(styleSheet.ownerNode.cloneNode(true));
+            } catch(e) {
+              this.weavy.error("Could not clone stylesheet", e)
+            }
           }
+        } else {
+          this.#weavy.warn("Could not add stylesheet: No valid ownerNode");
         }
       });
     }
