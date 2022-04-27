@@ -16,5 +16,6 @@ jobs:
       #    name: npm-package
       #    path: dist/*.tgz
       - run: npm publish --access public
+        if: github.ref_name == 'main'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}   
