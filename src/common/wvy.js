@@ -72,5 +72,17 @@
         }
     })
 
+    /**
+     * Read-only config properties from the server configuration.
+     */
+    Object.defineProperty(wvy, "config", {
+        get: function() {
+            let config = {
+                allowedOrigins: document.documentElement.dataset.allowedOrigins?.split(";") || null
+            };
+            return config;
+        }
+    })
+
     return wvy;
 }));

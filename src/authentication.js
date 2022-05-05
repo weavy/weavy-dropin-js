@@ -144,12 +144,12 @@ class WeavyAuthentication {
 
     // JWT
     var _jwt;
-    var _jwtProvider;
+    var _jwtFactory;
 
     function setJwt(jwt) {
       console.debug("configuring jwt");
       _jwt = null;
-      _jwtProvider = jwt;
+      _jwtFactory = jwt;
     }
 
     /**
@@ -170,33 +170,38 @@ class WeavyAuthentication {
           _jwt = null;
         }
 
-        if (_jwtProvider === undefined) {
+        if (_jwtFactory === undefined) {
           // no jwt provided, return nothing
           resolve(false);
           return;
         }
 
-        if (typeof _jwtProvider === "string") {
-          _jwt = _jwtProvider;
+        if (typeof _jwtFactory === "string" && _jwtFactory) {
+          _jwt = _jwtFactory;
+          console.warn("Providing JWT without a factory function is deprecated. Consider using a factory function to avoid unexpected errors.")
           resolve(_jwt);
-        } else if (typeof _jwtProvider === "function") {
-          var resolvedProvider = _jwtProvider();
+        } else if (typeof _jwtFactory === "function") {
+          var resolvedProvider = _jwtFactory(refresh);
 
           if (typeof resolvedProvider.then === "function") {
             resolvedProvider.then(function (token) {
-              _jwt = token;
-              resolve(_jwt);
+              if (typeof token === "string" && token) {
+                _jwt = token;
+                resolve(_jwt);
+              } else {
+                reject("failed to get a valid string token from the jwt factory promise");
+              }
             }, function (reason) {
               reject("failed to get token from the jwt factory promise:", reason);
             });
-          } else if (typeof resolvedProvider === "string") {
+          } else if (resolvedProvider && typeof resolvedProvider === "string") {
             _jwt = resolvedProvider;
             resolve(_jwt);
           } else {
-            reject("failed to get token from the jwt factory function");
+            reject("failed to get a valid string token from the jwt factory function");
           }
         } else {
-          reject("jwt option must be a string or a function that returns a promise");
+          reject("jwt option should be a factory function that is returning a string or is returning a promise that resolves to a string.");
         }
       });
     }
@@ -204,17 +209,17 @@ class WeavyAuthentication {
     function clearJwt() {
       console.debug("clearing jwt");
       _jwt = null;
-      _jwtProvider = null;
+      _jwtFactory = null;
     }
 
     function init(jwt) {
-      if (_isAuthenticated === null || jwt && jwt !== _jwtProvider) {
+      if (_isAuthenticated === null || jwt && jwt !== _jwtFactory) {
         if (typeof jwt === "string" || typeof jwt === "function") {
           setJwt(jwt);
         }
 
         // Authenticate
-        if (_jwtProvider !== undefined) {
+        if (_jwtFactory !== undefined) {
           console.debug("authenticate by jwt")
           // If JWT is defined, it should always be processed
           WeavyPostal.whenLeader().finally(function () { return validateJwt(); })
@@ -287,7 +292,7 @@ class WeavyAuthentication {
      * 
      * A new JWT provider will replace the current JWT provider, then the JWT will be validated.
      * 
-     * @param {string|function} [jwt] - Optional JWT token string or JWT provider function returning a Promise or JWT token string
+     * @param {string|function} [jwt] - Optional JWT token string or JWT factory function that is returning a JWT token string or is returning a Promise resolving a JWT token string. 
      */
     function signIn(jwt) {
       if (typeof jwt === "string" || typeof jwt === "function") {
@@ -408,7 +413,7 @@ class WeavyAuthentication {
         _isUpdating = true;
         WeavyPostal.whenLeader().then(function (isLeader) {
           if (isLeader) {
-            console.debug("whenLeader => updateUserState" + (_jwtProvider !== undefined ? ":jwt" : ":cookie"), originSource);
+            console.debug("whenLeader => updateUserState" + (_jwtFactory !== undefined ? ":jwt" : ":cookie"), originSource);
 
             if (_whenAuthenticated.state() !== "pending") {
               _whenAuthenticated.reset();
@@ -434,7 +439,7 @@ class WeavyAuthentication {
             };
 
             getJwt().then(function (token) {
-              if (_jwtProvider !== undefined) {
+              if (_jwtFactory !== undefined) {
                 if (typeof token !== "string") {
                   return Promise.reject(new Error("Provided JWT token is invalid."))
                 }
@@ -443,7 +448,7 @@ class WeavyAuthentication {
               }
 
               window.fetch(url.toString(), fetchSettings).then(function (response) {
-                if (response.status === 401 && _jwtProvider !== undefined) {
+                if (response.status === 401 && _jwtFactory !== undefined) {
                   console.warn("JWT failed, trying again");
                   return getJwt(true).then(function (token) {
                     fetchSettings.body = JSON.stringify({ jwt: token });
@@ -500,7 +505,7 @@ class WeavyAuthentication {
       };
 
       return getJwt().then(function (token) {
-        if (typeof token !== "string") {
+        if (!token || typeof token !== "string") {
           return Promise.reject(new Error("Provided JWT token is invalid."))
         }
 
@@ -562,7 +567,7 @@ class WeavyAuthentication {
       _isAuthenticated = null;
       _user = null;
       _jwt = null;
-      _jwtProvider = null;
+      _jwtFactory = null;
 
       WeavyPostal.off("message", { weavyId: "wvy.authentication", baseUrl: baseUrl }, onChildMessageReceived);
       WeavyPostal.off("distribute", { weavyId: "wvy.authentication", baseUrl: baseUrl }, onParentMessageReceived);
@@ -577,7 +582,7 @@ class WeavyAuthentication {
     this.isAuthorized = isAuthorized;
     this.isAuthenticated = function () { return _isAuthenticated === true; };
     this.isInitialized = function () { return _initialized === true; }
-    this.isProvided = function () { return !!_jwtProvider; };
+    this.isProvided = function () { return !!_jwtFactory; };
     this.whenAuthenticated = function () { return _whenAuthenticated(); };
     this.whenAuthorized = function () { return _whenAuthorized(); };
     this.signIn = signIn;

@@ -1,6 +1,18 @@
 import WeavyPromise from './common/promise';
 import WeavyUtils from './common/utils';
 
+  /**
+   * Is ShadowDOM supported by the browser?
+   * @type {boolean}
+   */
+   const supportsShadowDOM = !!HTMLElement.prototype.attachShadow;
+
+   /**
+    * Is constructable stylesheets supprted by the browser?
+    * @type {boolean}
+    */
+   const supportsConstructableStylesheets = 'adoptedStyleSheets' in document;
+
 // DEFINE CUSTOM ELEMENTS AND STYLES
 
 /**
@@ -15,27 +27,110 @@ if ('customElements' in window) {
 }
 
 // <weavy> and <weavy-root> should have no layout of their own.
-var weavyElementCSS = 'weavy, weavy-root { display: contents; }';
+var weavyGlobalCSS = `
+  weavy, weavy-root { 
+    display: contents; 
+  }`;
 
 // <weavy> and <weavy-root> gets layout only if needed 
 if (!('CSS' in window && CSS.supports('display', 'contents'))) {
-  weavyElementCSS = 'weavy, weavy-root { display: flex; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }';
+  weavyGlobalCSS = `
+    weavy, weavy-root { 
+      display: flex; 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      right: 0; 
+      bottom: 0; 
+      pointer-events: none; 
+    }
+  `;
 }
 
+  var weavyRootCSS = `
+    weavy-container {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      pointer-events: none;
+
+      font-size: rem(1);
+      line-height: rem(1.5);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-self: stretch;
+      flex: 1 1 100%;
+      height: 100%;
+      align-items: flex-start;
+      justify-content: flex-start;
+    }
+    
+    weavy-container.weavy-global {
+        position: fixed;
+        z-index: 2147483647; /* max possible z-index */
+    }
+
+    weavy-container:not(.weavy-global) > * {
+      pointer-events: auto;
+    }
+
+    weavy-container iframe {
+      border: none;
+    }
+
+    weavy-container[data-weavy-error]::after {
+      content: "🤷 " attr(data-weavy-error);
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      color: #333;
+    }
+
+    .weavy-hidden {
+      display: none;
+    }
+  `;
+
 // Prefer modern CSS registration
-if (document.adoptedStyleSheets) {
+if (supportsConstructableStylesheets) {
   var sheet = new CSSStyleSheet();
-  sheet.replaceSync(weavyElementCSS);
+  sheet.replaceSync(weavyGlobalCSS);
   document.adoptedStyleSheets = Array.prototype.concat.call(document.adoptedStyleSheets, [sheet]);
 } else {
   // Fallback CSS registration
   var elementStyleSheet = document.createElement("style");
-  elementStyleSheet.type = "text/css";
-  elementStyleSheet.styleSheet ? elementStyleSheet.styleSheet.cssText = weavyElementCSS : elementStyleSheet.appendChild(document.createTextNode(weavyElementCSS));
+  elementStyleSheet.styleSheet ? elementStyleSheet.styleSheet.cssText = weavyGlobalCSS : elementStyleSheet.appendChild(document.createTextNode(weavyGlobalCSS));
 
   document.getElementsByTagName("head")[0].appendChild(elementStyleSheet);
 }
 
+// Register root styles globally when ShadowDOM isn't supported
+if(!supportsShadowDOM) {
+  if (supportsConstructableStylesheets) {
+    let sheet = new CSSStyleSheet();
+    sheet.replaceSync(weavyRootCSS);
+    document.adoptedStyleSheets = Array.prototype.concat.call(document.adoptedStyleSheets, [sheet]);
+  } else {
+    // Fallback CSS registration
+    let elementStyleSheet = document.createElement("style");
+    elementStyleSheet.styleSheet ? elementStyleSheet.styleSheet.cssText = weavyRootCSS : elementStyleSheet.appendChild(document.createTextNode(weavyRootCSS));
+  
+    document.getElementsByTagName("head")[0].appendChild(elementStyleSheet);
+  }
+}
 
 /**
  * @class WeavyRoot
@@ -72,7 +167,7 @@ class WeavyRoot {
    * @static
    * @type {boolean}
    */
-  static supportsShadowDOM = !!HTMLElement.prototype.attachShadow;
+  static supportsShadowDOM = supportsShadowDOM;
 
   /**
    * Is constructable stylesheets supprted by the browser?
@@ -80,7 +175,7 @@ class WeavyRoot {
    * @static 
    * @type {boolean}
    */
-  static supportsConstructableStylesheets = 'adoptedStyleSheets' in document;
+  static supportsConstructableStylesheets = supportsConstructableStylesheets;
 
   id;
 
@@ -118,7 +213,14 @@ class WeavyRoot {
    * @private
    * @type {WeavyRoot~StylesheetLoader[]}
    */
-  #styleSheets;
+   #styleSheets;
+
+   /**
+    * List of any errors that has occured during stylesheet processing. 
+    * @private
+    * @type {{name: string, error: string}[]}
+    */
+   #styleSheetErrors;
 
   /**
    * Concatenated string of all added CSS.
@@ -165,6 +267,7 @@ class WeavyRoot {
 
     // STYLES
     this.#styleSheets = [];
+    this.#styleSheetErrors = [];
     this.#css = "";
   
     // EXTERNAL STYLES
@@ -173,7 +276,7 @@ class WeavyRoot {
       try {
         if (sheet instanceof CSSStyleSheet) {
           if (sheet.cssRules && sheet.cssRules[0] instanceof CSSNamespaceRule && sheet.cssRules[0].prefix === "weavy") {
-            weavy.debug("CSS: found external stylesheet");
+            weavy.debug(this.id, "CSS: found external stylesheet");
             if (WeavyRoot.supportsConstructableStylesheets) {
               var cSheet = new CSSStyleSheet();
               for (let rule of sheet.cssRules) {
@@ -186,7 +289,7 @@ class WeavyRoot {
           }
         }
       } catch(e) {
-        weavy.warn("Error reading stylesheet:", e);
+        this.#styleSheetErrors.push({name: sheet.href || sheet.ownerNode.nodeName, error: e.toString()});
       }
     }
 
@@ -197,13 +300,29 @@ class WeavyRoot {
 
     if (WeavyRoot.supportsShadowDOM) {
       if (weavy.options.shadowMode === "open") {
-        weavy.warn("Using ShadowDOM in open mode", this.id);
+        weavy.warn(this.id, "Using ShadowDOM in open mode", this.id);
       }
       this.dom = this.root.attachShadow({ mode: weavy.options.shadowMode || "closed" });
     } else {
       this.dom = this.root;
     }
     this.dom.appendChild(this.container);
+
+    // Register common styles in each root when ShadowDOM is used
+    // Prefer modern CSS registration
+    if (WeavyRoot.supportsShadowDOM) {
+      if (WeavyRoot.supportsConstructableStylesheets) {
+        let sheet = new CSSStyleSheet();
+        sheet.replaceSync(weavyRootCSS);
+        this.dom.adoptedStyleSheets = [...this.dom.adoptedStyleSheets, sheet];
+      } else {
+        // Fallback CSS registration
+        var elementStyleSheet = document.createElement("style");
+        elementStyleSheet.styleSheet ? elementStyleSheet.styleSheet.cssText = weavyRootCSS : elementStyleSheet.appendChild(document.createTextNode(weavyRootCSS));
+      
+        this.dom.appendChild(elementStyleSheet);
+      }
+    }
 
     this.addStyles(weavy.options);
 
@@ -215,9 +334,14 @@ class WeavyRoot {
      **/
     this.triggerEvent("on:root-create", this);
 
-    if (!this.#styleSheets.length && !this.#css && (!eventParent || eventParent === weavy)) {
-      weavy.error("CSS: No styles provided! Provide a stylesheet using the weavy namespace or add styles in options.");
+    if (!this.#styleSheets.length && !this.#css) {
+      if (eventParent && eventParent !== weavy) {
+        this.container.dataset.weavyError = "No styles loaded"
+        this.#showAnyErrors(this.id, "CSS: No styles provided! Provide a stylesheet using the weavy namespace or add styles in options.");
+      }
     }
+
+    this.#styleSheetErrors = [];
 
     queueMicrotask(() => this.triggerEvent("after:root-create", this));
   }
@@ -225,7 +349,7 @@ class WeavyRoot {
   addStyles(options) {
     // get styles from options
     if (options?.css) {
-      this.#weavy.debug("CSS: adding custom css");
+      this.#weavy.debug(this.id, "CSS: adding custom css");
       this.#addCss(options.css);
     }
 
@@ -234,41 +358,52 @@ class WeavyRoot {
       let stylesheets = WeavyUtils.asArray(options.stylesheet);
 
       stylesheets.forEach((stylesheet) => {
-        this.#weavy.debug("CSS: fetching stylesheet");
         var cssUrl = new URL(stylesheet, window.location.href);
         var whenCss = new WeavyPromise();
-        let stylesheetObj = { whenCss: whenCss };
-        this.#styleSheets.push(stylesheetObj);
-  
-        fetch(cssUrl).then((response) => {
-          let contentType = (response.headers.has("content-type") ? response.headers.get("content-type") : "").split(";")[0];
-          if (response.ok && contentType === "text/css") {
-            return response.text().then((clientCss) => {
-  
-              if (WeavyRoot.supportsConstructableStylesheets) {
-                var cSheet = new CSSStyleSheet();
-                cSheet.replaceSync(clientCss);
-                stylesheetObj.stylesheet = cSheet;
-              } else {
-                this.#addCss(clientCss);
-              }
-              whenCss.resolve()
-            });
-          } else {
-            whenCss.reject(new Error("Error fetching stylesheet"));
-          }
-        });
-      })
+        let stylesheetObj = { url: cssUrl, whenCss: whenCss };
+        
+        if (!this.#styleSheets.find((existingStyleSheet) => existingStyleSheet.url?.toString() === cssUrl.toString())) {
+          this.#weavy.debug(this.id, "CSS: fetching stylesheet", cssUrl.toString());
+          this.#styleSheets.push(stylesheetObj);
+    
+          fetch(cssUrl).then((response) => {
+            let contentType = (response.headers.has("content-type") ? response.headers.get("content-type") : "").split(";")[0];
+            if (response.ok && contentType === "text/css") {
+              return response.text().then((clientCss) => {
+    
+                if (WeavyRoot.supportsConstructableStylesheets) {
+                  var cSheet = new CSSStyleSheet();
+                  cSheet.replaceSync(clientCss);
+                  stylesheetObj.stylesheet = cSheet;
+                } else {
+                  this.#addCss(clientCss);
+                }
+                whenCss.resolve()
+              });
+            } else {
+              return Promise.reject(new Error("Error fetching stylesheet"));
+            }
+          }).catch((reason) => {
+            this.#styleSheetErrors.push({ name: cssUrl, error: reason.toString() })
+            whenCss.reject(reason);
+          });
+        }
+      });
     }
 
     this.#applyStyles();
-    return Promise.all(this.#styleSheets.map((styleSheetObj) => styleSheetObj.whenCss));
+
+    return Promise.allSettled(this.#styleSheets.map((styleSheetObj) => styleSheetObj.whenCss)).then((result) => { 
+      this.#showAnyErrors(this.id, "Some stylesheets could not be fetched");
+        // return the fulfilled values
+        return result.filter((p) => p.status === "fulfilled").map((p) => p.value);
+    });
   }
 
   getStyles(withoutNamespaces) {
-    return Promise.all(this.#styleSheets.map((stylesheet) => stylesheet.whenCss)).then(() => { 
+    return Promise.allSettled(this.#styleSheets.map((stylesheet) => stylesheet.whenCss)).then(() => { 
       let styleSheetsText = this.#styleSheets.reduce((allCss, stylesheetObj) => {
-        if(stylesheetObj.stylesheet) {
+        if (stylesheetObj.stylesheet) {
           return allCss += Array.from(stylesheetObj.stylesheet.cssRules).reduce((css, rule) => {
             return withoutNamespaces && rule instanceof CSSNamespaceRule ? css : css += rule.cssText;
           }, "");
@@ -286,7 +421,7 @@ class WeavyRoot {
     let notLoaded = !!this.#styleSheets.find((styleSheetObj) => styleSheetObj.whenCss?.state() === "pending")
 
     if (notLoaded) {
-      Promise.all(this.#styleSheets.map((styleSheetObj) => styleSheetObj.whenCss)).then(() => {
+      Promise.allSettled(this.#styleSheets.map((styleSheetObj) => styleSheetObj.whenCss)).then(() => {
         this.#applyStyleSheets();
         this.#applyCss();
         this.triggerEvent("on:root-styles");
@@ -303,7 +438,7 @@ class WeavyRoot {
 
   #applyCss() {
     if (this.#css) {
-      this.#weavy.debug("CSS: setting custom css stylesheet");
+      this.#weavy.debug(this.id, "CSS: setting custom css stylesheet");
 
       let cssStyles = document.createElement("style");
 
@@ -324,10 +459,10 @@ class WeavyRoot {
   #applyStyleSheets() {
     let styleSheets = this.#styleSheets.map((styleSheetObj) => styleSheetObj.stylesheet).filter((x) => x);
     if (WeavyRoot.supportsConstructableStylesheets) {
-      this.#weavy.debug("CSS: setting adopted stylesheets", this.dom);
+      this.#weavy.debug(this.id, "CSS: setting adopted stylesheets", this.dom);
       this.dom.adoptedStyleSheets = [...this.dom.adoptedStyleSheets, ...styleSheets];
     } else {
-      this.#weavy.debug("CSS: cloning stylesheets", this.dom);
+      this.#weavy.debug(this.id, "CSS: cloning stylesheets", this.dom);
       styleSheets.forEach((styleSheet) => {
         if (styleSheet.ownerNode) {
           // Check if stylesheet exists already
@@ -346,11 +481,11 @@ class WeavyRoot {
             try {
               this.dom.appendChild(styleSheet.ownerNode.cloneNode(true));
             } catch(e) {
-              this.weavy.error("Could not clone stylesheet", e)
+              this.weavy.error(this.id, "Could not clone stylesheet", e)
             }
           }
         } else {
-          this.#weavy.warn("Could not add stylesheet: No valid ownerNode");
+          this.#weavy.warn(this.id, "Could not add stylesheet: No valid ownerNode");
         }
       });
     }
@@ -371,6 +506,20 @@ class WeavyRoot {
       } else {
         this.#css += cssText + "\n";
       }
+    }
+  }
+
+  /**
+   * 
+   * @param  {...any} labels - Any messages to put before the error listing
+   */
+  #showAnyErrors(...labels) {
+    if (this.#styleSheetErrors.length) {
+
+      this.#weavy.error(...labels);
+      this.#styleSheetErrors.forEach((e) => this.#weavy.warn(e.name.toString(), e.error.toString()));
+
+      this.#styleSheetErrors = [];
     }
   }
 

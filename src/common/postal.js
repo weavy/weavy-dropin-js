@@ -465,10 +465,10 @@ function WeavyPostal(options) {
                 // Server configured cors-origins
                 // Origins containing wildcards will be treated as generic wildcard origin
                 if (!parentOrigins) {
-                    let corsOrigins = wvy.config.corsOrigins;
+                    let corsOrigins = wvy.config.allowedOrigins;
                     if (corsOrigins && !(corsOrigins.length === 1 && corsOrigins[0] === "*")) {
                         parentOrigins = corsOrigins;
-                        console.debug("Using CORS origin");
+                        console.log("Postal using allowed origin");
                     }
                 }
             } catch (e) { /* no parentOrigins assigned */ }
@@ -478,7 +478,7 @@ function WeavyPostal(options) {
                 if (!parentOrigins) {
                     parentOrigins = [parent.location.origin];
                     if (parentOrigins) {
-                        console.log("Using same-domain origin");
+                        console.log("Postal using same-domain origin");
                     }
                 }
             } catch (e) { /* no parentOrigins assigned */ }

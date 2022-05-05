@@ -940,8 +940,8 @@ var Weavy = function () {
 
       // frame status checking
       var statusFrame = weavy.nodes.statusFrame = document.createElement("iframe");
-      statusFrame.className = "weavy-status-check weavy-hidden";
-      statusFrame.style.display = "none";
+      statusFrame.className = "weavy-status-check";
+      statusFrame.hidden = true;
       statusFrame.id = weavy.getId("weavy-status-check");
       statusFrame.setAttribute("name", weavy.getId("weavy-status-check"));
 
