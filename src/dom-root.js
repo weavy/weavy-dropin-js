@@ -524,15 +524,15 @@ class WeavyRoot {
   }
 
   remove() {
-    this.triggerEvent("before:remove-root", this);
+    this.triggerEvent("before:root-remove", this);
 
     if (this.section) {
       this.section.remove();
       this.section = null;
     }
 
-    this.triggerEvent("on:remove-root", this);
-    this.triggerEvent("after:remove-root", this);
+    this.triggerEvent("on:root-remove", this);
+    this.triggerEvent("after:root-remove", this);
   }
 }
 

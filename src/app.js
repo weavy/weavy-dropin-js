@@ -650,7 +650,7 @@ WeavyApp.prototype.remove = function () {
     }
   });
 
-  app.root.apps.remove(app);
+  app.root.apps.delete(app);
 
   weavy.apps = weavy.apps.filter(function (a) { return !a.match(app) });
 
