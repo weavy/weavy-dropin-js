@@ -1,5 +1,5 @@
 import * as signalR from "@microsoft/signalr";
-import WeavyConsole from "./console";
+import WeavyConsole from "./utils/console";
 
 const HUB_PATH: string = "/hubs/rtm";
 const EVENT_NAMESPACE: string = ".connection";

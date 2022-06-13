@@ -1,5 +1,5 @@
-import WeavyPromise from './common/promise';
-import WeavyUtils from './common/utils';
+import WeavyPromise from './utils/promise';
+import WeavyUtils from './utils/utils';
 
 //console.debug("history.js");
 

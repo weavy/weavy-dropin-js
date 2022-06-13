@@ -1,5 +1,5 @@
-import WeavyPromise from './common/promise';
-import WeavyUtils from './common/utils';
+import WeavyPromise from './utils/promise';
+import WeavyUtils from './utils/utils';
 
   /**
    * Is ShadowDOM supported by the browser?
@@ -68,12 +68,12 @@ if (!('CSS' in window && CSS.supports('display', 'contents'))) {
       justify-content: flex-start;
     }
     
-    weavy-container.weavy-global {
+    weavy-container[role="region"] {
         position: fixed;
         z-index: 2147483647; /* max possible z-index */
     }
 
-    weavy-container:not(.weavy-global) > * {
+    weavy-container:not([role="region"]) > * {
       pointer-events: auto;
     }
 
@@ -97,10 +97,6 @@ if (!('CSS' in window && CSS.supports('display', 'contents'))) {
       justify-content: center;
       background: #fff;
       color: #333;
-    }
-
-    .weavy-hidden {
-      display: none;
     }
   `;
 
@@ -262,8 +258,8 @@ class WeavyRoot {
     this.root.setAttribute("data-version", weavy.version);
 
     this.container = document.createElement("weavy-container");
-    this.container.className = "weavy-container";
-    this.container.id = weavy.getId("weavy-container-" + this.#rawId);
+    this.container.className = weavy.getPrefix("container");
+    this.container.id = weavy.getId("container-" + this.#rawId);
 
     // STYLES
     this.#styleSheets = [];
@@ -447,7 +443,7 @@ class WeavyRoot {
       if (WeavyRoot.supportsShadowDOM) {
         this.dom.appendChild(cssStyles);
       } else {
-        var styleId = this.#weavy.getId("weavy-styles");
+        var styleId = this.#weavy.getId("styles");
         if (!document.getElementById(styleId)) {
           cssStyles.id = styleId; // Is weavyStyles set?
           document.getElementsByTagName("head")[0].appendChild(cssStyles);

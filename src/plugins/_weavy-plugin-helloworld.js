@@ -29,10 +29,10 @@ class HelloWorldPlugin {
             var root = weavy.getRoot();
             if (root) {
                 // Add weavy-hello-world class to the main weavy container
-                root.section.classList.add("weavy-" + classText);
+                root.section.classList.add(weavy.getPrefix(classText));
 
                 // This is the last step in the flow and shows true if everything was successful
-                weavy.log("Hello World done:", root.section.classList.contains("weavy-hello-world"));
+                weavy.log("Hello World done:", root.section.classList.contains(weavy.getPrefix("hello-world")));
             }
         }
 

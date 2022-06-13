@@ -42,10 +42,7 @@ module.exports = (env) => {
     target: "web",
     entry: {
       "weavy-dropin": {
-        import: [
-          './styles/weavy-dropin.scss',
-          './weavy-dropin.js',
-        ],
+        import: './weavy-dropin.js',
         library: {
           name: { root: 'Weavy' },
           type: 'umd',
@@ -87,22 +84,6 @@ module.exports = (env) => {
             loader: 'ts-loader'
           },
           exclude: /node_modules/,
-        },
-        {
-          test: /\.scss$/,
-          exclude: /node_modules/,
-          type: 'asset/resource',
-          generator: {
-            filename: '[name].css'
-          },
-          use: [
-            {
-              loader: "sass-loader",
-              options: {
-                webpackImporter: false,
-              },
-            },
-          ],
         }
       ]
     },

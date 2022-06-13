@@ -1,6 +1,6 @@
 import Weavy from '../weavy';
-import WeavyPostal from '../common/postal';
-import WeavyPromise from '../common/promise';
+import WeavyPostal from '../utils/postal';
+import WeavyPromise from '../utils/promise';
 
 /**
  * Filepicker plugin for attaching from Google, O365, Dropbox etc.
@@ -44,7 +44,7 @@ class FileBrowserPlugin {
           $filebrowserFrame.id = id;
           $filebrowserFrame.name = id;
           $filebrowserFrame.src = filebrowserSrc;
-          $filebrowserFrame.className = "weavy-filebrowser-frame"
+          $filebrowserFrame.className = weavy.getPrefix("filebrowser-frame");
 
           weavy.nodes.panels.filebrowser.node.appendChild($filebrowserFrame);
 
@@ -89,7 +89,7 @@ class FileBrowserPlugin {
          * @name Weavy#nodes#panels#filebrowser
          **/
         weavy.nodes.panels.filebrowser = weavy.panels.createContainer();
-        weavy.nodes.panels.filebrowser.node.classList.add("weavy-filebrowser");
+        weavy.nodes.panels.filebrowser.node.classList.add(weavy.getPrefix("filebrowser"));
         weavy.nodes.global.appendChild(weavy.nodes.panels.filebrowser.node);
       }
     });

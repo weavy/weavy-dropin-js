@@ -10,11 +10,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'      
       - run: npm ci
       - run: npm run build
-      #- run: npm pack --pack-destination ./dist
-      #- uses: actions/upload-artifact@v3
-      #  with:
-      #    name: npm-package
-      #    path: dist/*.tgz
       - run: npm publish --access public
         if: github.ref_name == 'main'
         env:

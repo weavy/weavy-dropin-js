@@ -1,6 +1,6 @@
-import WeavyPromise from './common/promise';
-import WeavyUtils from './common/utils';
-import WeavyPostal from './common/postal';
+import WeavyPromise from './utils/promise';
+import WeavyUtils from './utils/utils';
+import WeavyPostal from './utils/postal';
 
 //console.debug("navigation.js");
 
@@ -33,33 +33,32 @@ var WeavyNavigation = function (weavy) {
    */
   function openRequest(request) {
     var whenOpened = new WeavyPromise();
+
     if (request.target) {
       weavy.log("navigation: opening overlay " + request.url);
       weavy.overlays.open(request).then((open) => {
         whenOpened.resolve(open);
       });
+    } else if(request.url) {
+      // open by matching url
+      let urlSelector = { url: new URL(request.url, weavy.url)};
+      weavy.whenLoaded().then(function () {
+        let app = weavy.apps.filter(function (a) { return a.match(urlSelector) }).pop();
+        if (app) {
+          console.log("found matching navigation app by url")
+          weavy.overlays.closeAll(true);
+  
+          app.open(request.url).then(function (open) {
+            whenOpened.resolve(open);
+          });
+        } else {
+          weavy.info("navigation: requested app was not found");
+          whenOpened.reject();
+        }
+      });
     } else {
-
-      if (request.app && (request.app.id || request.app.appId)) {
-
-        weavy.whenLoaded().then(function () {
-          var openApp = weavy.app(request.app.id || request.app.appId);
-
-          if (openApp) {
-            weavy.overlays.closeAll(true);
-
-            openApp.open(request.url).then(function (open) {
-              whenOpened.resolve(open);
-            });
-          } else {
-            weavy.info("navigation: requested app was not found");
-            whenOpened.reject();
-          }
-        });
-      } else {
-        weavy.warn("navigation: url was not resolved to an app");
-        whenOpened.reject();
-      }
+      weavy.warn("navigation: no valid request");
+      whenOpened.reject();
     }
 
     return whenOpened();
@@ -76,12 +75,12 @@ var WeavyNavigation = function (weavy) {
    */
   weavyNavigation.open = function (request) {
     var isNavigationRequest = WeavyUtils.isPlainObject(request) && request.url;
-    var isUrl = !request.app && !request.target && (typeof request === "string" && request || isNavigationRequest);
+    var isUrl = !request.target && (typeof request === "string" && request || isNavigationRequest);
     var requestString = String(isUrl || isNavigationRequest);
     var isWeavyUrl = requestString.includes("wvy:");
 
     if (isWeavyUrl) {
-      weavy.log("checking weavy url");
+      weavy.log("checking wvy: url");
       var weavyUrls = requestString;
       var requestUrl = new URL(requestString, weavy.url);
       var requestHash = requestUrl && requestUrl.hash && requestUrl.hash.replace(/^#/, '');
@@ -91,29 +90,8 @@ var WeavyNavigation = function (weavy) {
       }
       return weavy.history.open(weavyUrls);
     } else if (isUrl) {
-      weavy.log("checking url using click");
-      var checkUrl;
-
-      try {
-        checkUrl = new URL(requestString, weavy.url)
-      } catch (e) {
-        weavy.error("Could not parse navigation request url");
-      }
-
-      if (checkUrl) {
-        let pathSegments = checkUrl.pathname.split("/").filter((x) => x);
-        if (pathSegments[0] === "dropin") {
-          let [appType, appId, appSegment] = pathSegments.slice(1);
-
-          appId = parseInt(appId);
-
-          weavy.debug("Opening url parsed navigation request", appType, appId, appSegment)
-
-          return openRequest({ url: requestString, app: { appId: appId } })
-        }
-      }
-
-      //return weavy.ajax("/dropin/client/click?url=" + encodeURIComponent(requestString) + "&embedded=true").then(openRequest);
+      weavy.log("open navigation url", requestString)
+      return openRequest({ url: requestString })
     } else if (isNavigationRequest) {
       weavy.log("open navigation request", request)
       return openRequest(request);

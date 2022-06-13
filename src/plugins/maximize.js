@@ -123,7 +123,7 @@ class MaximizePlugin {
 
         function createButton(controls, panel, styles) {
             var maximize = document.createElement("div");
-            maximize.className = "weavy-icon";
+            maximize.className = weavy.getPrefix("icon");
             maximize.title = "Maximize";
             maximize.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4,4H20V20H4V4M6,8V18H18V8H6Z" /></svg>';
             weavy.on(maximize, "click", toggleMaximize.bind(panel, null, styles));
@@ -143,7 +143,7 @@ class MaximizePlugin {
                         parentContainer = panelAdded.panel.eventParent.eventParent.root.parent;
                     } catch (e) { }*/
                     weavy.debug("maximize: adding panel control", panelAdded.panelId);
-                    var panelControls = panelAdded.panel.node.querySelector(".weavy-controls");
+                    var panelControls = panelAdded.panel.node.querySelector(weavy.getPrefix(".controls"));
                     if (panelControls) {
                         createButton(panelControls, panelAdded.panel, styles);
                     }

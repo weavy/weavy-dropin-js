@@ -1,5 +1,5 @@
-import WeavyUtils from './common/utils';
-import WeavyPostal from './common/postal';
+import WeavyUtils from './utils/utils';
+import WeavyPostal from './utils/postal';
 
 //console.debug("overlay.js");
 
@@ -26,9 +26,9 @@ var WeavyOverlays = function (weavy) {
     var _overlays = new Map();
 
     var overlayClassNames = {
-        modal: "weavy-modal",
-        preview: "weavy-dark",
-        overlay: "weavy-floating"
+        modal: "modal",
+        preview: "dark",
+        overlay: "floating"
     }
 
     var overlayUrlRegex = {
@@ -49,7 +49,7 @@ var WeavyOverlays = function (weavy) {
             let overlayUrl = new URL(overlayOptions.url, weavy.url);
 
             if (overlayOptions.type) {
-                overlayOptions.className = overlayClassNames[overlayOptions.type] + (overlayOptions.className ? " " + overlayOptions.className : "");
+                overlayOptions.className = weavy.getPrefix(overlayClassNames[overlayOptions.type] + (overlayOptions.className ? " " + overlayOptions.className : ""));
             }
 
             overlay = weavy.nodes.panels.overlays.addPanel("overlay:" + overlayId, overlayUrl, overlayOptions);
@@ -61,7 +61,7 @@ var WeavyOverlays = function (weavy) {
             // Send styles to frame on ready and when styles are updated
             // TODO: Move this to panel?
             overlay.on("panel-ready root-styles", () => weavy.root.getStyles().then((styles) => {
-                overlay.postMessage({ name: "styles", id: overlayId, css: styles, className: overlayOptions.className });
+                overlay.postMessage({ name: "styles", id: overlayId, css: styles, className: overlayOptions.className, prefix: weavy.prefix || null });
             }));
 
             _overlays.set(overlayId, overlay);
@@ -163,7 +163,7 @@ var WeavyOverlays = function (weavy) {
              * @name Weavy#nodes#panels#overlays
              **/
             weavy.nodes.panels.overlays = weavy.panels.createContainer();
-            weavy.nodes.panels.overlays.node.classList.add("weavy-overlays"); // TODO: change name
+            weavy.nodes.panels.overlays.node.classList.add(weavy.getPrefix("overlays")); // TODO: change name
             weavy.nodes.global.appendChild(weavy.nodes.panels.overlays.node);
         }
     });

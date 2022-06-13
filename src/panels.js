@@ -1,7 +1,7 @@
-import WeavyPromise from './common/promise';
-import WeavyUtils from './common/utils';
-import WeavyPostal from './common/postal';
-import wvy from './common/wvy';
+import WeavyPromise from './utils/promise';
+import WeavyUtils from './utils/utils';
+import WeavyPostal from './utils/postal';
+import wvy from './utils/wvy';
 
 
 //console.debug("panels.js");
@@ -43,7 +43,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   var createFrame = function (url) {
     // frame
     var frame = document.createElement("iframe");
-    frame.className = "weavy-panel-frame";
+    frame.className = weavy.getPrefix("panel-frame");
     frame.id = weavy.getId("panel-" + panelId);
     frame.name = weavy.getId("panel-" + panelId);
     frame.allowFullscreen = 1;
@@ -67,7 +67,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
    * @typicalname ~panel
    * @property {string} id - Unique id for the container. Using panelId processed with {@link Weavy#getId}.
    * @property {string} panelId - Unprocessed id for the panel.
-   * @property {string} className - DOM class: "weavy-panel".
+   * @property {string} className - DOM class: "panel".
    * @property {string} [dataset.type] - Any provided type.
    * @property {boolean} [dataset.persistent] - Will the panel remain when {@link WeavyPanels~panel#remove} or {@link WeavyPanels#clearPanels} are called?
    * @property {boolean} [dataset.preload] - Should the panel be preloaded when idle
@@ -94,10 +94,10 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   //var panelNode = Reflect.construct(HTMLElement, [], this.constructor);
   panel.node = document.createElement("div");
 
-  panel.node.className = "weavy-panel";
+  panel.node.className = weavy.getPrefix("panel");
 
   if (attributes.className) {
-    panel.node.classList.add(...attributes.className.split(" "));
+    panel.node.classList.add(attributes.className);
   }
   panel.node.id = panelElementId;
   panel.node.dataset.id = panelId;
@@ -216,15 +216,15 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   panel.on("panel-loading", function (e, panelLoading) {
     requestAnimationFrame(() => {
       if (panelLoading.isLoading) {
-        panel.node.classList.add("weavy-loading");
+        panel.node.classList.add(weavy.getPrefix("loading"));
       } else {
-        panel.node.classList.remove("weavy-loading");
+        panel.node.classList.remove(weavy.getPrefix("loading"));
       }
 
       if (panelLoading.isLoaded) {
-        panel.node.classList.add("weavy-loaded");
+        panel.node.classList.add(weavy.getPrefix("loaded"));
       } else {
-        panel.node.classList.remove("weavy-loaded");
+        panel.node.classList.remove(weavy.getPrefix("loaded"));
       }
     })
   });
@@ -235,7 +235,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
    * @property {boolean} isOpem - True if the panel is open
    */
   Object.defineProperty(panel, "isOpen", {
-    get: function () { return panel.node.classList.contains("weavy-open"); }
+    get: function () { return panel.node.classList.contains(weavy.getPrefix("open")); }
   });
 
   /**
@@ -472,12 +472,12 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   function renderControls(panel, options) {
 
     var controls = document.createElement("div");
-    controls.className = "weavy-controls";
+    controls.className = weavy.getPrefix("controls");
 
     if (options.controls) {
       if (options.controls === true || options.controls.close) {
         var close = document.createElement("div");
-        close.className = "weavy-icon" + (typeof options.controls.close === "string" ? " " + options.controls.close : "");
+        close.className = weavy.getPrefix("icon" + (typeof options.controls.close === "string" ? " " + options.controls.close : ""));
         close.title = wvy.t("Close");
         close.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" /></svg>';
         weavy.on(close, "click", panel.close.bind(panel));
@@ -523,8 +523,8 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
       var openResult = panel.triggerEvent("panel-open", { panelId: panel.panelId, destination: destination, panels: panelsContainer });
 
       if (openResult !== false && openResult.panelId === panel.panelId) {
-        panel.node.classList.add("weavy-open");
-        window.requestAnimationFrame(() => panel.node.classList.add("weavy-transition"))
+        panel.node.classList.add(weavy.getPrefix("open"));
+        window.requestAnimationFrame(() => panel.node.classList.add(weavy.getPrefix("transition")))
         return panel.load(openResult.destination, null, null, null, noHistory);
       } else {
         return Promise.reject(new Error("Prevented open " + panel.panelId));
@@ -591,7 +591,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
 
         var closePromises = [];
 
-        panel.node.classList.remove("weavy-open", "weavy-transition");
+        panel.node.classList.remove(...weavy.getPrefix("open", "transition"));
 
         if (noEvent !== true) {
           /**
@@ -1064,7 +1064,7 @@ var WeavyPanels = function (weavy) {
      * @type {HTMLElement}
      * @property {string} id - Unique id for the container. Using containerId processed with {@link Weavy#getId}
      * @property {string} containerId - The provided id unprocessed.
-     * @property {string} className - DOM class: "weavy-panels"
+     * @property {string} className - DOM class: "panels"
      * @property {function} addPanel - {@link WeavyPanels~container#addPanel} creates a {@link WeavyPanels~panel} in the panel container and returns it.
      * @property {Object} eventParent - Unset. Set the eventParent as a reference to a parent to provide event propagation to that object.
      * @property {function} on - Binding to the [.on()]{@link WeavyEvents#on} eventhandler of the weavy instance.
@@ -1074,7 +1074,7 @@ var WeavyPanels = function (weavy) {
      **/
     var panelsRoot = document.createElement("div");
     panelsRoot.id = containerElementId;
-    panelsRoot.className = "weavy-panels";
+    panelsRoot.className = weavy.getPrefix("panels");
     //panelsRoot.containerId = containerId;
     panelsRoot.dataset.containerId = containerId;
 

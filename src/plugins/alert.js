@@ -17,14 +17,14 @@ class AlertPlugin {
         function displayMessage(message, sticky) {
             if (!sticky) {
                 weavy.whenTimeout(5000).then(function () {
-                    message.classList.remove("in");
+                    message.classList.remove(weavy.getPrefix("in"));
                 });
                 weavy.whenTimeout(5200).then(function () {
                     message.remove();
                 });
             }
             weavy.whenTimeout(1).then(function () {
-                message.classList.add("in");
+                message.classList.add(weavy.getPrefix("in"));
             });
             weavy.nodes.global.appendChild(message);
         }
@@ -40,7 +40,7 @@ class AlertPlugin {
          */
         this.alert = weavy.alert = function (message, sticky) {
             var alertMessage = document.createElement("div");
-            alertMessage.className = options.className;
+            alertMessage.className = weavy.getPrefix(options.className);
             if (message instanceof HTMLElement) {
                 alertMessage.appendChild(message);
             } else {
@@ -71,16 +71,16 @@ class AlertPlugin {
  * 
  * @example
  * Weavy.plugins.alert.defaults = {
- *     className: "weavy-alert-message fade in"
+ *     className: "alert-message fade in"
  * };
  * 
  * @name defaults
  * @memberof AlertPlugin
  * @type {Object}
- * @property {string} [className=weavy-alert-message fade in] - Default classes for the alerts
+ * @property {string} [className=alert-message fade in] - Default classes for the alerts
  */
 AlertPlugin.defaults = {
-    className: "weavy-alert-message fade"
+    className: "alert-message fade"
 };
 
 Weavy.plugins.alert = AlertPlugin;

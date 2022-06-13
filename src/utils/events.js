@@ -262,7 +262,7 @@ var WeavyEvents = function (rootTarget) {
    * @category eventhandling
    * @function
    * @name WeavyEvents#on
-   * @param {Element} [context] - Context Element. If omitted it defaults to the Weavy instance. weavy.connection and wvy.postal may also be used as contexts.
+   * @param {Element} [context] - Context Element. If omitted it defaults to the Weavy instance.
    * @param {string} events - One or several event names separated by spaces. You may provide any namespaces in the names or use the general namespace parameter instead.
    * @param {string|Object} [selector] - Only applicable if the context supports selectors, for instance jQuery.on().
    * @param {function} handler - The listener. The first argument is always the event, followed by any data arguments provided by the trigger.
@@ -341,7 +341,7 @@ var WeavyEvents = function (rootTarget) {
    * @category eventhandling
    * @function
    * @name WeavyEvents#one
-   * @param {Element} [context] - Context Element. If omitted it defaults to the Weavy instance. weavy.connection and wvy.postal may also be used as contexts.
+   * @param {Element} [context] - Context Element. If omitted it defaults to the Weavy instance.
    * @param {string} events - One or several event names separated by spaces. You may provide any namespaces in the names or use the general namespace parameter instead.
    * @param {string|Object} [selector] - Only applicable if the context supports selectors, for instance jQuery.on().
    * @param {Function} handler - The listener. The first argument is always the event, folowed by any data arguments provided by the trigger.
@@ -356,7 +356,7 @@ var WeavyEvents = function (rootTarget) {
    * @category eventhandling
    * @function
    * @name WeavyEvents#off
-   * @param {Element} [context] - Context Element. If omitted it defaults to the Weavy instance. weavy.connection and wvy.postal may also be used as contexts.
+   * @param {Element} [context] - Context Element. If omitted it defaults to the Weavy instance.
    * @param {string} events - One or several event names separated by spaces. You may provide any namespaces in the names or use the general namespace parameter instead.
    * @param {string} [selector] - Only applicable if the context supports selectors, for instance jQuery.on().
    * @param {function} handler - The listener. The first argument is always the event, folowed by any data arguments provided by the trigger.

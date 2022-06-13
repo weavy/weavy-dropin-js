@@ -1,11 +1,10 @@
 /* global WEAVY_VERSION, WEAVY_DEVELOPMENT */
 
-import WeavyEvents from './common/events';
-import WeavyUtils from './common/utils';
-import WeavyConsole from './common/console';
-import WeavyPromise from './common/promise';
-import WeavyPostal from './common/postal';
-import WeavyRealtime from "./common/realtime";
+import WeavyEvents from './utils/events';
+import WeavyUtils from './utils/utils';
+import WeavyConsole from './utils/console';
+import WeavyPromise from './utils/promise';
+import WeavyPostal from './utils/postal';
 
 import WeavyRoot from './dom-root';
 import WeavyPanels from './panels';
@@ -13,6 +12,7 @@ import WeavyOverlays from './overlays';
 import WeavyNavigation from './navigation';
 import WeavyHistory from './history';
 import WeavyAuthentications from './authentication';
+import WeavyRealtime from "./realtime";
 import WeavyApp from './app';
 
 console.info("weavy.js");
@@ -66,6 +66,7 @@ var Weavy = function () {
    * @property {string} [className] - Additional classNames added to weavy.
    * @property {string} [https=adaptive] - How to enforce https-links. <br> • **force** -  makes urls https.<br> • **adaptive** - enforces https if the calling site uses https.<br> • **default** - makes no change.
    * @property {string} [id] - An id for the instance. A unique id is always generated.
+   * @property {string} [prefix] - A prefix for style classNames used by weavy. Must match Dropin.Server and theme stylesheet. Defaults to "wy".
    * @property {string} jwt - The JWT token passed to {@link WeavyAuthentication}.
    * @property {boolean} [init=true] - Should weavy initialize automatically?
    * @property {boolean} [includePlugins=true] - Whether all registered plugins should be enabled by default. If false, then each plugin needs to be enabled in plugin-options.
@@ -93,8 +94,22 @@ var Weavy = function () {
     }
   }
 
+  var _prefix = weavy.options.prefix || '';
+
+  /**
+   * The weavy theme prefix
+   * @member {string} Weavy#prefix
+   **/
+  Object.defineProperty(weavy, "prefix", { get: function () { return _prefix } });
+
+  /**
+   * Supporting function for generating an id
+   * @ignore
+   * @param {string} id 
+   * @returns {string}
+   */
   function generateId(id) {
-    id = "wy-" + (id ? id.replace(/^wy-/, '') : WeavyUtils.S4() + WeavyUtils.S4());
+    id = _prefix + "-" + (id ? id.replace(new RegExp("^"+ _prefix + "-"), '') : WeavyUtils.S4() + WeavyUtils.S4());
 
     // Make sure id is unique
     if (_weavyIds.indexOf(id) !== -1) {
@@ -160,6 +175,29 @@ var Weavy = function () {
   };
 
   /**
+   * Prepends weavy theme prefix to classNames with or without dot.
+   * With no classNames provided, it returns the prefix alone.
+   * @param {...string} classNames - One or more classNames. May be space separated.
+   * @returns {string|string[]} Prefixed className or array of prefixed classNames.
+   */
+  weavy.getPrefix = function(...classNames) {
+    if (weavy.prefix) {
+      classNames = classNames.map((className) => {
+        // Transform space-separated strings to array
+        className ??= '';
+        return className.split(" ").map((str) => {
+          if (str[0] === '.') {
+            return `.${weavy.prefix}-${str.substring(1)}`;
+          } else {
+            return `${weavy.prefix}-${str}`;
+          }
+        }).join(" ");
+      })
+    }
+    return (classNames.length === 1 ? classNames[0] : classNames);
+  }
+
+  /**
    * The hardcoded semver version of the weavy-script.
    * @member {string} Weavy#version
    */
@@ -217,9 +255,6 @@ var Weavy = function () {
    * @type {Object}
    * @property {Array.<WeavyApp#data>} apps - List of configured apps.
    * @property {Object} plugins - Options for configured plugins.
-   * @property {Object} [plugins.theme] - Options for the theme plugin
-   * @property {string} plugins.theme.logo - Thumb URL for the global installation logo.
-   * @property {string} plugins.theme.themeColor - Primary color for the theme in Hex color.
    * @property {string} status - Status of the server. Should be "ok".
    * @property {string} version - Semver string of the server version. Should match the script {@link Weavy.version}.
    **/
@@ -628,7 +663,7 @@ var Weavy = function () {
         weavy.on(weavy.realtime, "reconnected.connection", function () {
           if (weavy.authentication.isAuthenticated()) {
             // Check if user state is still valid
-            weavy.authentication.updateUserState("wvy.connection:reconnected");
+            weavy.authentication.updateUserState("connection:reconnected");
           }
         });
 
@@ -912,7 +947,8 @@ var Weavy = function () {
       weavy.nodes.container = root.root;
       weavy.nodes.global = root.container;
 
-      weavy.nodes.global.classList.add("weavy-global");
+      weavy.nodes.global.classList.add(weavy.getPrefix("viewport"))
+      weavy.nodes.global.setAttribute("role","region");
     }
   }
 
@@ -940,20 +976,20 @@ var Weavy = function () {
 
       // frame status checking
       var statusFrame = weavy.nodes.statusFrame = document.createElement("iframe");
-      statusFrame.className = "weavy-status-check";
+      statusFrame.className = weavy.getPrefix("status-check");
       statusFrame.hidden = true;
-      statusFrame.id = weavy.getId("weavy-status-check");
-      statusFrame.setAttribute("name", weavy.getId("weavy-status-check"));
+      statusFrame.id = weavy.getId("status-check");
+      statusFrame.setAttribute("name", weavy.getId("status-check"));
 
       var requestStorageAccess = function () {
         var msg = WeavyUtils.asElement('<span>Third party cookies are required to use this page. </span>')
-        var msgButton = WeavyUtils.asElement('<button class="btn" style="pointer-events: auto;">Enable cookies</button>');
+        var msgButton = WeavyUtils.asElement('<button class="' + weavy.getPrefix('button button-primary') +  '" style="pointer-events: auto;">Enable cookies</button>');
         var storageAccessWindow;
 
         msgButton.onclick = function () {
           weavy.log('Frame Check: Opening storage access request');
-          storageAccessWindow = window.open(new URL('/dropin/client/cookie-access', weavy.url), weavy.getId("weavy-storage-access"));
-          WeavyPostal.registerContentWindow(storageAccessWindow, weavy.getId("weavy-storage-access"), weavy.getId(), weavy.url.origin);
+          storageAccessWindow = window.open(new URL('/dropin/client/cookie-access', weavy.url), weavy.getId("storage-access"));
+          WeavyPostal.registerContentWindow(storageAccessWindow, weavy.getId("storage-access"), weavy.getId(), weavy.url.origin);
         };
         msg.appendChild(msgButton);
 
@@ -975,13 +1011,13 @@ var Weavy = function () {
 
           weavy.authentication.signIn().then(function () {
             weavy.debug("Frame Check: reloading status check")
-            WeavyPostal.postToFrame(weavy.getId("weavy-status-check"), weavyId, { name: "reload" });
+            WeavyPostal.postToFrame(weavy.getId("status-check"), weavyId, { name: "reload" });
           });
         });
 
       };
 
-      weavy.on(WeavyPostal, "user-status", { weavyId: weavy.getId(), windowName: weavy.getId("weavy-status-check") }, function (e, userStatus) {
+      weavy.on(WeavyPostal, "user-status", { weavyId: weavy.getId(), windowName: weavy.getId("status-check") }, function (e, userStatus) {
         var cookieIsValid = parseInt(userStatus.id) === parseInt(weavy.authentication.user().id);
         weavy.debug("Frame Check: user-status received", cookieIsValid);
         whenFrameCookiesChecked.resolve(cookieIsValid);
@@ -998,7 +1034,7 @@ var Weavy = function () {
       });
 
 
-      weavy.one(WeavyPostal, "ready", { weavyId: weavy.getId(), windowName: weavy.getId("weavy-status-check") }, function () {
+      weavy.one(WeavyPostal, "ready", { weavyId: weavy.getId(), windowName: weavy.getId("status-check") }, function () {
         weavy.debug("Frame Check: frame ready")
         whenFrameReady.resolve();
       });
@@ -1059,7 +1095,7 @@ var Weavy = function () {
         weavy.isBlocked = true;
 
         try {
-          WeavyPostal.registerContentWindow(weavy.nodes.statusFrame.contentWindow, weavy.getId("weavy-status-check"), weavy.getId(), weavy.url.origin);
+          WeavyPostal.registerContentWindow(weavy.nodes.statusFrame.contentWindow, weavy.getId("status-check"), weavy.getId(), weavy.url.origin);
         } catch (e) {
           weavy.warn("Frame postMessage is blocked", e);
           weavy.triggerEvent("frame-check", { blocked: true });
@@ -1398,6 +1434,7 @@ Weavy.presets = {
  *     https: "adaptive",
  *     init: true,
  *     includePlugins: true,
+ *     prefix: "wy",
  *     preload: true,
  *     url: "/"
  * };
@@ -1409,10 +1446,11 @@ Weavy.presets = {
  * @type {Object}
  * @name Weavy.defaults
  * @property {Element} [container] - Container where weavy should be placed. If no Element is provided, a &lt;section&gt; is created next to the &lt;body&gt;-element.
- * @property {string} [className=weavy-default] - Additional classNames added to weavy.
+ * @property {string} [className] - Additional classNames added to weavy.
  * @property {string} [https=adaptive] - How to enforce https-links. <br>• **force** -  makes urls https.<br>• **adaptive** -  enforces https if the calling site uses https.<br>• **default** - makes no change.
  * @property {boolean} [init=true] - Should weavy initialize automatically.
  * @property {boolean} [includePlugins=true] - Whether all registered plugins should be enabled by default. If false, then each plugin needs to be enabled in plugin-options.
+ * @property {string} [prefix] - Prefix for styling classNames.
  * @property {boolean} [preload] - Start automatic preloading after load
  * @property {boolean} [shadowMode=closed] - Set whether ShadowDOMs should be `closed` (recommended) or `open`.
  * @property {string} url - The URL to the Weavy-installation to connect to.
@@ -1425,6 +1463,7 @@ Weavy.defaults = {
   plugins: {
     deeplinks: false
   },
+  prefix: "wy",
   preload: true,
   shadowMode: "closed",
   url: "/"

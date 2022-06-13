@@ -1,10 +1,10 @@
-import WeavyUtils from './common/utils';
-import WeavyPromise from './common/promise';
-import WeavyConsole from './common/console';
-import WeavyPostal from './common/postal';
-import WeavyEvents from './common/events';
+import WeavyUtils from './utils/utils';
+import WeavyPromise from './utils/promise';
+import WeavyConsole from './utils/console';
+import WeavyPostal from './utils/postal';
+import WeavyEvents from './utils/events';
 
-import wvy from './common/wvy';
+import wvy from './utils/wvy';
 
 const ssoUrl = "/dropin/client/login";
 const signOutUrl = "/dropin/client/logout";
@@ -47,7 +47,7 @@ class WeavyAuthenticationsManager {
     }
   }
 
-  // expose wvy.authentication.default. self initiatied upon access and no other authentication is active 
+  // expose WeavyAuthentication.default. self initiatied upon access and no other authentication is active 
   static get default() {
     if (_authentications.has("")) {
       return _authentications.get("");

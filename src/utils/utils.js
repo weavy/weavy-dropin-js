@@ -36,67 +36,6 @@
     return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
   };
 
-  // FUNCTION WRAPPERS
-
-  /**
-   * Wraps an event handler with a delegate selector, so it can be used for generic listening similar to jQuerys `$(element).on("click", ".my-selector", handler)`.
-   * 
-   * @example
-   * document.body.addEventListener("click", WeavyUtils.delegate("button.btn", function(event) { ... });
-   * 
-   * @param {string} selector - The selector to match.
-   * @param {function} handler - The handler function to wrap.
-   */
-  WeavyUtils.delegate = function (selector, handler) {
-    return function (event) {
-      var targ = event.target;
-      do {
-        if (targ.matches(selector)) {
-          handler.apply(targ, arguments);
-        }
-      } while ((targ = targ.parentNode) && targ !== event.currentTarget);
-    }
-  }
-
-  WeavyUtils.debounce = function (func, delay) {
-    let inDebounce
-    let debounce = function () {
-      const context = this;
-      const args = arguments;
-      clearTimeout(inDebounce);
-      inDebounce = setTimeout(() => func.apply(context, args), delay);
-    };
-    debounce.cancel = function () { clearTimeout(inDebounce) };
-    return debounce;
-  }
-
-  WeavyUtils.throttle = function (func, limit, skipTrailing) {
-    let lastFunc;
-    let lastRan;
-    let throttle = function () {
-      const context = this;
-      const args = arguments;
-      if (!lastRan) {
-        func.apply(context, args)
-        lastRan = Date.now()
-      } else {
-        clearTimeout(lastFunc);
-        lastFunc = setTimeout(function () {
-          if ((Date.now() - lastRan) >= limit) {
-            if (skipTrailing) {
-              lastRan = null;
-            } else {
-              func.apply(context, args);
-              lastRan = Date.now();
-            }
-          }
-        }, limit - (Date.now() - lastRan));
-      }
-    };
-    throttle.cancel = function () { clearTimeout(lastFunc) };
-    return throttle;
-  }
-
   /**
    * Parse any HTML string into a HTMLCollection. Use WeavyUtils.parseHTML(html)[0] to get the first HTMLElement.
    * 
@@ -114,13 +53,6 @@
       parseDoc.body.innerHTML = html.trim();
       return parseDoc.body.children;
     }
-  }
-  /**
-   * Checks if an element is visible, similar to jQuery :visible
-   * @param {HTMLElement} el
-   */
-  WeavyUtils.isVisible = function (el) {
-    return el.isConnected && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
   }
 
   /*

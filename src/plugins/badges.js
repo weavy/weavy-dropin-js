@@ -31,14 +31,19 @@ class BadgesPlugin {
      * @property {int} notifications - Number of unread notifications
      * @property {int} total - The total number of unread conversations and notifications.
      */
-    this.getBadges = (id) => {
-      return weavy.ajax("dropin/badge/" + id);
+    this.getBadges = (app) => {
+      if (app.type === "messenger") {
+        return weavy.ajax("dropin/client/conversation-badge/").then(
+          (conversationBadge) => conversationBadge.private + conversationBadge.rooms
+        );
+      }
+      return Promise.reject();
     }
 
     this.get = (app) => {
-      badgesPlugin.getBadges(app.appId).then((count) => {
+      badgesPlugin.getBadges(app).then((count) => {
         app.triggerEvent("badge", { count: count })
-      });
+      }).catch(() => { /* No worries */});
     }
 
     // Trigger initial badge event

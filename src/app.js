@@ -1,5 +1,5 @@
-import WeavyUtils from './common/utils';
-import WeavyPromise from './common/promise';
+import WeavyUtils from './utils/utils';
+import WeavyPromise from './utils/promise';
 
 //console.debug("app.js");
 
@@ -73,13 +73,6 @@ var WeavyApp = function (weavy, options, data) {
    * @type {string}
    */
   app.id = null;
-
-  /**
-   * The server appId of the app, recieved from app data.
-   * @category properties
-   * @type {string}
-   */
-  app.appId = null;
 
   /**
    * The name of the app, defined in options or received from app data.
@@ -316,11 +309,9 @@ var WeavyApp = function (weavy, options, data) {
         app.id = app.data.id;
       }
 
-      if (app.appId === null && app.data.appId) {
-        app.appId = app.data.appId;
+      if(app.url === null && app.data.url) {
+        app.url = new URL(app.data.url, weavy.url);
       }
-
-      app.url = app.data.url;
 
       app.isInitialized = true;
 
@@ -480,7 +471,7 @@ var WeavyApp = function (weavy, options, data) {
 
           // Send styles to frame on ready and when styles are updated
           app.on("panel-ready root-styles", () => app.root.getStyles().then((styles) => {
-            app.postMessage({ name: "styles", id: app.id, css: styles, className: options.className });
+            app.postMessage({ name: "styles", id: app.id, css: styles, className: weavy.getPrefix(options.className), prefix: weavy.prefix || null });
           }));
 
           whenStylesLoaded.then((styles) => {
@@ -675,33 +666,8 @@ WeavyApp.prototype.postMessage = function (message, transfer) {
   });
 }
 
-
 /**
- * Check if another app or an object is matching this app. It checks for a match of the id property or the server appId property.
- * 
- * @category methods
- * @function WeavyApp#match
- * @param {WeavyApp|Object} options
- * @param {int} [options.id] - Optional id to match.
- * @param {string} [options.appId] - Optional appId to match.
- * @returns {boolean} 
- */
-WeavyApp.prototype.match = function (options) {
-  if (options) {
-    if (options.id && this.id) {
-      return WeavyUtils.eqString(options.id, this.id);
-    }
-
-    if (options.appId && this.appId) {
-      return options.appId === this.appId;
-    }
-  }
-
-  return false;
-};
-
-/**
- * Check if another app or an object is matching this app. It checks for a match of the id property or the server appId property.
+ * Adds styles to the app using inline css or by loading a stylesheet.
  * 
  * @category methods
  * @function WeavyApp#addStyles
@@ -724,6 +690,42 @@ WeavyApp.prototype.match = function (options) {
     return this.root.addStyles({css, stylesheet});
   });
 };
+
+/**
+ * Check if another app or an object is matching this app. It checks for a match of the id property or matching the url property against the base url.
+ * 
+ * @category methods
+ * @function WeavyApp#match
+ * @param {WeavyApp|Object} options
+ * @param {int} [options.id] - Optional id to match.
+ * @param {URL} [options.url] - Optional URL to match against base path of the app.
+ * @returns {boolean} 
+ */
+WeavyApp.prototype.match = function (options) {
+  if (options) {
+    if (options.id && this.id) {
+      return WeavyUtils.eqString(options.id, this.id);
+    }
+
+    if (options.url && this.url) {
+      let optionsUrl = new URL(options.url);
+      let appUrl = new URL(this.url);
+      let exactMatch = optionsUrl.href === appUrl.href;
+      
+      // app.url might end without slash
+      if (!appUrl.pathname.endsWith("/")){
+        appUrl.pathname += "/";
+      }
+      let baseMatch = optionsUrl.href.startsWith(appUrl.href);
+
+      return exactMatch || baseMatch;
+    }
+  }
+
+  return false;
+};
+
+
 /**
  * Function for making an id/object in to an app definition object
  * 
@@ -731,26 +733,23 @@ WeavyApp.prototype.match = function (options) {
  * @param {string|WeavyApp#options} options - The id/object to parse
  * @returns {Object} appSelector
  * @returns {boolean} appSelector.isId - Is appOptions parsed as a id (string)?
- * @returns {boolean} appSelector.isAppId - Is appOptions parsed as a server appId (int)?
  * @returns {boolean} appSelector.isConfig - Is AppOptions parsed as an app definition (Object)?
  * @returns {Object} appSelector.selector - App definition object
  */
 WeavyApp.getAppSelector = (options) => {
   var isId = typeof options === "string";
-  var isAppId = Number.isInteger(options);
-  var isConfig = WeavyUtils.isPlainObject(options);
+  var isConfig = WeavyUtils.isPlainObject(options) && options.id;
 
-  var selector = isConfig && options || isId && { id: options } || isAppId && { appId: options };
+  var selector = isConfig && options || isId && { id: options };
 
   if (!selector) {
     if ('id' in options) {
       selector = { id: options.id };
-    } else if ('appId' in options) {
-      selector = { appId: options.appId };
     }
   }
 
-  return { isId: isId, isAppId: isAppId, isConfig: isConfig, selector: selector };
+  return { isId: isId, isConfig: isConfig, selector: selector };
 }
+
 
 export default WeavyApp;
