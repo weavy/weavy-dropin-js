@@ -17,14 +17,14 @@ class AlertPlugin {
         function displayMessage(message, sticky) {
             if (!sticky) {
                 weavy.whenTimeout(5000).then(function () {
-                    message.classList.remove(weavy.getPrefix("in"));
+                    message.classList.remove("wy-in");
                 });
                 weavy.whenTimeout(5200).then(function () {
                     message.remove();
                 });
             }
             weavy.whenTimeout(1).then(function () {
-                message.classList.add(weavy.getPrefix("in"));
+                message.classList.add("wy-in");
             });
             weavy.nodes.global.appendChild(message);
         }
@@ -40,7 +40,7 @@ class AlertPlugin {
          */
         this.alert = weavy.alert = function (message, sticky) {
             var alertMessage = document.createElement("div");
-            alertMessage.className = weavy.getPrefix(options.className);
+            alertMessage.className = options.className;
             if (message instanceof HTMLElement) {
                 alertMessage.appendChild(message);
             } else {
@@ -80,7 +80,7 @@ class AlertPlugin {
  * @property {string} [className=alert-message fade in] - Default classes for the alerts
  */
 AlertPlugin.defaults = {
-    className: "alert-message fade"
+    className: "wy-alert-message wy-fade"
 };
 
 Weavy.plugins.alert = AlertPlugin;

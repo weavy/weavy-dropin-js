@@ -43,7 +43,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   var createFrame = function (url) {
     // frame
     var frame = document.createElement("iframe");
-    frame.className = weavy.getPrefix("panel-frame");
+    frame.className = "wy-panel-frame";
     frame.id = weavy.getId("panel-" + panelId);
     frame.name = weavy.getId("panel-" + panelId);
     frame.allowFullscreen = 1;
@@ -94,7 +94,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   //var panelNode = Reflect.construct(HTMLElement, [], this.constructor);
   panel.node = document.createElement("div");
 
-  panel.node.className = weavy.getPrefix("panel");
+  panel.node.className = "wy-panel";
 
   if (attributes.className) {
     panel.node.classList.add(attributes.className);
@@ -216,15 +216,15 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   panel.on("panel-loading", function (e, panelLoading) {
     requestAnimationFrame(() => {
       if (panelLoading.isLoading) {
-        panel.node.classList.add(weavy.getPrefix("loading"));
+        panel.node.classList.add("wy-loading");
       } else {
-        panel.node.classList.remove(weavy.getPrefix("loading"));
+        panel.node.classList.remove("wy-loading");
       }
 
       if (panelLoading.isLoaded) {
-        panel.node.classList.add(weavy.getPrefix("loaded"));
+        panel.node.classList.add("wy-loaded");
       } else {
-        panel.node.classList.remove(weavy.getPrefix("loaded"));
+        panel.node.classList.remove("wy-loaded");
       }
     })
   });
@@ -235,7 +235,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
    * @property {boolean} isOpem - True if the panel is open
    */
   Object.defineProperty(panel, "isOpen", {
-    get: function () { return panel.node.classList.contains(weavy.getPrefix("open")); }
+    get: function () { return panel.node.classList.contains("wy-open"); }
   });
 
   /**
@@ -472,12 +472,12 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   function renderControls(panel, options) {
 
     var controls = document.createElement("div");
-    controls.className = weavy.getPrefix("controls");
+    controls.className = "wy-controls";
 
     if (options.controls) {
       if (options.controls === true || options.controls.close) {
         var close = document.createElement("div");
-        close.className = weavy.getPrefix("icon" + (typeof options.controls.close === "string" ? " " + options.controls.close : ""));
+        close.className = "wy-icon" + (typeof options.controls.close === "string" ? " " + options.controls.close : "");
         close.title = wvy.t("Close");
         close.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" /></svg>';
         weavy.on(close, "click", panel.close.bind(panel));
@@ -523,8 +523,8 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
       var openResult = panel.triggerEvent("panel-open", { panelId: panel.panelId, destination: destination, panels: panelsContainer });
 
       if (openResult !== false && openResult.panelId === panel.panelId) {
-        panel.node.classList.add(weavy.getPrefix("open"));
-        window.requestAnimationFrame(() => panel.node.classList.add(weavy.getPrefix("transition")))
+        panel.node.classList.add("wy-open");
+        window.requestAnimationFrame(() => panel.node.classList.add("wy-transition"))
         return panel.load(openResult.destination, null, null, null, noHistory);
       } else {
         return Promise.reject(new Error("Prevented open " + panel.panelId));
@@ -591,7 +591,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
 
         var closePromises = [];
 
-        panel.node.classList.remove(...weavy.getPrefix("open", "transition"));
+        panel.node.classList.remove("wy-open", "wy-transition");
 
         if (noEvent !== true) {
           /**
@@ -1074,7 +1074,7 @@ var WeavyPanels = function (weavy) {
      **/
     var panelsRoot = document.createElement("div");
     panelsRoot.id = containerElementId;
-    panelsRoot.className = weavy.getPrefix("panels");
+    panelsRoot.className = "wy-panels";
     //panelsRoot.containerId = containerId;
     panelsRoot.dataset.containerId = containerId;
 

@@ -6,7 +6,7 @@ import WeavyConsole from './utils/console';
 import WeavyPromise from './utils/promise';
 import WeavyPostal from './utils/postal';
 
-import WeavyRoot from './dom-root';
+import WeavyRoot from './root';
 import WeavyPanels from './panels';
 import WeavyOverlays from './overlays';
 import WeavyNavigation from './navigation';
@@ -66,10 +66,10 @@ var Weavy = function () {
    * @property {string} [className] - Additional classNames added to weavy.
    * @property {string} [https=adaptive] - How to enforce https-links. <br> • **force** -  makes urls https.<br> • **adaptive** - enforces https if the calling site uses https.<br> • **default** - makes no change.
    * @property {string} [id] - An id for the instance. A unique id is always generated.
-   * @property {string} [prefix] - A prefix for style classNames used by weavy. Must match Dropin.Server and theme stylesheet. Defaults to "wy".
    * @property {string} jwt - The JWT token passed to {@link WeavyAuthentication}.
    * @property {boolean} [init=true] - Should weavy initialize automatically?
    * @property {boolean} [includePlugins=true] - Whether all registered plugins should be enabled by default. If false, then each plugin needs to be enabled in plugin-options.
+   * @property {boolean} [includeStyles=true] - Whether default styles should be enabled. If false, you need to provide a custom stylesheet.
    * @property {string} [lang] - [Language code]{@link https://en.wikipedia.org/wiki/ISO_639-1} of preferred user interface language, e.g. <code>en</code> for English. When set, it must match one of your [configured languages]{@link https://docs.weavy.com/server/localization}.
    * @property {Object|boolean} [logging] - Options for console logging. Set to false to disable.
    * @property {string} [logging.color] - Hex color (#bada55) used for logging. A random color is generated as default.
@@ -94,14 +94,6 @@ var Weavy = function () {
     }
   }
 
-  var _prefix = weavy.options.prefix || '';
-
-  /**
-   * The weavy theme prefix
-   * @member {string} Weavy#prefix
-   **/
-  Object.defineProperty(weavy, "prefix", { get: function () { return _prefix } });
-
   /**
    * Supporting function for generating an id
    * @ignore
@@ -109,7 +101,7 @@ var Weavy = function () {
    * @returns {string}
    */
   function generateId(id) {
-    id = _prefix + "-" + (id ? id.replace(new RegExp("^"+ _prefix + "-"), '') : WeavyUtils.S4() + WeavyUtils.S4());
+    id = "wy-" + (id ? id.replace(new RegExp("^wy-"), '') : WeavyUtils.S4() + WeavyUtils.S4());
 
     // Make sure id is unique
     if (_weavyIds.indexOf(id) !== -1) {
@@ -173,29 +165,6 @@ var Weavy = function () {
   weavy.removeId = function (id) {
     return id ? String(id).replace(new RegExp("__" + weavy.getId() + "$"), '') : id;
   };
-
-  /**
-   * Prepends weavy theme prefix to classNames with or without dot.
-   * With no classNames provided, it returns the prefix alone.
-   * @param {...string} classNames - One or more classNames. May be space separated.
-   * @returns {string|string[]} Prefixed className or array of prefixed classNames.
-   */
-  weavy.getPrefix = function(...classNames) {
-    if (weavy.prefix) {
-      classNames = classNames.map((className) => {
-        // Transform space-separated strings to array
-        className ??= '';
-        return className.split(" ").map((str) => {
-          if (str[0] === '.') {
-            return `.${weavy.prefix}-${str.substring(1)}`;
-          } else {
-            return `${weavy.prefix}-${str}`;
-          }
-        }).join(" ");
-      })
-    }
-    return (classNames.length === 1 ? classNames[0] : classNames);
-  }
 
   /**
    * The hardcoded semver version of the weavy-script.
@@ -947,8 +916,7 @@ var Weavy = function () {
       weavy.nodes.container = root.root;
       weavy.nodes.global = root.container;
 
-      weavy.nodes.global.classList.add(weavy.getPrefix("viewport"))
-      weavy.nodes.global.setAttribute("role","region");
+      weavy.nodes.global.classList.add("wy-viewport")
     }
   }
 
@@ -976,14 +944,14 @@ var Weavy = function () {
 
       // frame status checking
       var statusFrame = weavy.nodes.statusFrame = document.createElement("iframe");
-      statusFrame.className = weavy.getPrefix("status-check");
+      statusFrame.className = "wy-status-check";
       statusFrame.hidden = true;
       statusFrame.id = weavy.getId("status-check");
       statusFrame.setAttribute("name", weavy.getId("status-check"));
 
       var requestStorageAccess = function () {
         var msg = WeavyUtils.asElement('<span>Third party cookies are required to use this page. </span>')
-        var msgButton = WeavyUtils.asElement('<button class="' + weavy.getPrefix('button button-primary') +  '" style="pointer-events: auto;">Enable cookies</button>');
+        var msgButton = WeavyUtils.asElement('<button class="wy-button wy-button-primary" style="pointer-events: auto;">Enable cookies</button>');
         var storageAccessWindow;
 
         msgButton.onclick = function () {
@@ -1239,8 +1207,6 @@ var Weavy = function () {
 
     if (destroyResult !== false) {
 
-
-
       Promise.all(destroyResult.whenAllDestroyed || []).then(function () {
         weavy.log("destroy: Removing roots");
         _roots.forEach(function (root) {
@@ -1424,7 +1390,7 @@ Weavy.presets = {
 
 /**
  * Default options. These options are general for all Weavy instances and may be overridden in {@link Weavy#options}. 
- * You may add any general options you like here. The url is always set to the installation where your weavy.js was generated.
+ * You may add any general options you like here.
  * 
  * @example
  * // Defaults
@@ -1434,7 +1400,7 @@ Weavy.presets = {
  *     https: "adaptive",
  *     init: true,
  *     includePlugins: true,
- *     prefix: "wy",
+ *     includeStyles: true,
  *     preload: true,
  *     url: "/"
  * };
@@ -1450,7 +1416,7 @@ Weavy.presets = {
  * @property {string} [https=adaptive] - How to enforce https-links. <br>• **force** -  makes urls https.<br>• **adaptive** -  enforces https if the calling site uses https.<br>• **default** - makes no change.
  * @property {boolean} [init=true] - Should weavy initialize automatically.
  * @property {boolean} [includePlugins=true] - Whether all registered plugins should be enabled by default. If false, then each plugin needs to be enabled in plugin-options.
- * @property {string} [prefix] - Prefix for styling classNames.
+ * @property {boolean} [includeStyles=true] - Whether default styles should be enabled by default. If false, you need to provide a custom stylesheet instead.
  * @property {boolean} [preload] - Start automatic preloading after load
  * @property {boolean} [shadowMode=closed] - Set whether ShadowDOMs should be `closed` (recommended) or `open`.
  * @property {string} url - The URL to the Weavy-installation to connect to.
@@ -1460,10 +1426,10 @@ Weavy.defaults = {
   https: "adaptive", // force, adaptive or default 
   init: true,
   includePlugins: true,
+  includeStyles: true,
   plugins: {
     deeplinks: false
   },
-  prefix: "wy",
   preload: true,
   shadowMode: "closed",
   url: "/"

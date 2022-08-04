@@ -84,7 +84,21 @@ module.exports = (env) => {
             loader: 'ts-loader'
           },
           exclude: /node_modules/,
-        }
+        },
+        {
+          test: /\.s[ac]ss$/i,
+          use: [
+            // Translates CSS into CommonJS
+            {
+              loader: "css-loader",
+              options: {
+                exportType: "string"
+              },
+            },
+            // Compiles Sass to CSS
+            "sass-loader",
+          ],
+        },
       ]
     },
     optimization: {

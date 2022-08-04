@@ -471,7 +471,7 @@ var WeavyApp = function (weavy, options, data) {
 
           // Send styles to frame on ready and when styles are updated
           app.on("panel-ready root-styles", () => app.root.getStyles().then((styles) => {
-            app.postMessage({ name: "styles", id: app.id, css: styles, className: weavy.getPrefix(options.className), prefix: weavy.prefix || null });
+            app.postMessage({ name: "styles", id: app.id, css: styles, className: options.className });
           }));
 
           whenStylesLoaded.then((styles) => {

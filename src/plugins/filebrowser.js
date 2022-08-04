@@ -44,7 +44,7 @@ class FileBrowserPlugin {
           $filebrowserFrame.id = id;
           $filebrowserFrame.name = id;
           $filebrowserFrame.src = filebrowserSrc;
-          $filebrowserFrame.className = weavy.getPrefix("filebrowser-frame");
+          $filebrowserFrame.className = "wy-filebrowser-frame";
 
           weavy.nodes.panels.filebrowser.node.appendChild($filebrowserFrame);
 
@@ -89,7 +89,7 @@ class FileBrowserPlugin {
          * @name Weavy#nodes#panels#filebrowser
          **/
         weavy.nodes.panels.filebrowser = weavy.panels.createContainer();
-        weavy.nodes.panels.filebrowser.node.classList.add(weavy.getPrefix("filebrowser"));
+        weavy.nodes.panels.filebrowser.node.classList.add("wy-filebrowser");
         weavy.nodes.global.appendChild(weavy.nodes.panels.filebrowser.node);
       }
     });
