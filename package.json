@@ -1,6 +1,6 @@
 {
   "name": "@weavy/dropin-js",
-  "version": "12.0.1",
+  "version": "12.1.0",
   "author": "Weavy",
   "description": "Javascript library for the Weavy drop-in UI",
   "homepage": "https://github.com/weavy/weavy-dropin-js",
@@ -37,7 +37,6 @@
     "webpack-cli": "^4.9.2"
   },
   "dependencies": {
-    "@microsoft/signalr": "^6.0.4",
-    "@weavy/themes": "^12.0.1"
+    "@microsoft/signalr": "^6.0.4"
   }
 }

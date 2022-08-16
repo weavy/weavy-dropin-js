@@ -1,12 +1,12 @@
 // weavy reboot
-@use "../node_modules/@weavy/themes/scss/default/reboot";
+@use "theme/reboot";
 
 // weavy ui components
-@use "../node_modules/@weavy/themes/scss/default/components/alert";
-@use "../node_modules/@weavy/themes/scss/default/components/filebrowser";
-@use "../node_modules/@weavy/themes/scss/default/components/icons";
-@use "../node_modules/@weavy/themes/scss/default/components/overlays";
-@use "../node_modules/@weavy/themes/scss/default/components/panels";
+@use "theme/alert";
+@use "theme/filebrowser";
+@use "theme/icons";
+@use "theme/overlays";
+@use "theme/panels";
 
 // dropin-js styles
 .wy-container {

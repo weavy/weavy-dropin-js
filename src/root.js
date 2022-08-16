@@ -1,7 +1,7 @@
 import WeavyPromise from './utils/promise';
 import WeavyUtils from './utils/utils';
-import weavyGlobalCss from "../scss/_global.scss";
-import weavyRootCss from "../scss/_root.scss";
+import weavyGlobalCss from "./scss/_global.scss";
+import weavyRootCss from "./scss/_root.scss";
 
 /**
  * @class WeavyRoot
