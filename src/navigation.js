@@ -1,6 +1,6 @@
 import WeavyPromise from './utils/promise';
-import WeavyUtils from './utils/utils';
-import WeavyPostal from './utils/postal';
+import { isPlainObject } from './utils/utils';
+import WeavyPostal from './utils/postal-parent';
 
 //console.debug("navigation.js");
 
@@ -74,7 +74,7 @@ var WeavyNavigation = function (weavy) {
    * @rejected When the request can't be opened
    */
   weavyNavigation.open = function (request) {
-    var isNavigationRequest = WeavyUtils.isPlainObject(request) && request.url;
+    var isNavigationRequest = isPlainObject(request) && request.url;
     var isUrl = !request.target && (typeof request === "string" && request || isNavigationRequest);
     var requestString = String(isUrl || isNavigationRequest);
     var isWeavyUrl = requestString.includes("wvy:");

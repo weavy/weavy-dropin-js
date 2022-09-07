@@ -1,5 +1,5 @@
-import WeavyUtils from './utils/utils';
-import WeavyPostal from './utils/postal';
+import { assign } from './utils/utils';
+import WeavyPostal from './utils/postal-parent';
 
 //console.debug("overlay.js");
 
@@ -39,7 +39,7 @@ var WeavyOverlays = function (weavy) {
 
     this.overlay = function (overlayOptions) {
         // Copy all options
-        overlayOptions = WeavyUtils.assign(overlayOptions);
+        overlayOptions = assign(overlayOptions);
 
         weavy.log("get overlay", overlayOptions);
         let overlayId = overlayOptions.overlayId || overlayOptions.type || "overlay";
@@ -221,7 +221,7 @@ var WeavyOverlays = function (weavy) {
      */
     this.openState = function (panelState) {
         return weavy.whenLoaded().then(function () {
-            let panelAttributes = WeavyUtils.assign(panelState.attributes, { title: panelState.title })
+            let panelAttributes = assign(panelState.attributes, { title: panelState.title })
             let overlay = weavyOverlays.overlay(panelAttributes);
             overlay.setState(panelState).then(focus);
         });

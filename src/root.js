@@ -1,5 +1,5 @@
 import WeavyPromise from './utils/promise';
-import WeavyUtils from './utils/utils';
+import { asElement, asArray } from './utils/utils';
 import weavyGlobalCss from "./scss/_global.scss";
 import weavyRootCss from "./scss/_root.scss";
 
@@ -210,7 +210,7 @@ class WeavyRoot {
 
     this.#rawId = weavy.removeId(id);
     this.id = weavy.getId(id);
-    this.parent = WeavyUtils.asElement(parent);
+    this.parent = asElement(parent);
 
     if (!this.parent) {
       throw new Error("No parent container defined" + this.id);
@@ -319,7 +319,7 @@ class WeavyRoot {
 
     // load stylesheet from options
     if (options?.stylesheet) {
-      let stylesheets = WeavyUtils.asArray(options.stylesheet);
+      let stylesheets = asArray(options.stylesheet);
 
       stylesheets.forEach((stylesheet) => {
         var cssUrl = new URL(stylesheet, window.location.href);

@@ -1,5 +1,5 @@
 import WeavyPromise from './utils/promise';
-import WeavyUtils from './utils/utils';
+import { asArray } from './utils/utils';
 
 //console.debug("history.js");
 
@@ -58,7 +58,7 @@ var WeavyHistory = function (weavy) {
    * @returns {WeavyHistory~weavyState}
    */
   weavyHistory.getStateFromUri = function (weavyUris) {
-    weavyUris = WeavyUtils.asArray(weavyUris);
+    weavyUris = asArray(weavyUris);
     var panels = [];
     weavyUris.forEach(function (uri) {
       var isUrl = typeof uri === "string";

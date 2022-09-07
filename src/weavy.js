@@ -1,10 +1,10 @@
 /* global WEAVY_VERSION, WEAVY_DEVELOPMENT */
 
 import WeavyEvents from './utils/events';
-import WeavyUtils from './utils/utils';
+import { assign, S4, asArray, eqObjects, asElement, sanitizeJSON, processJSONResponse, isPlainObject } from './utils/utils';
 import WeavyConsole from './utils/console';
 import WeavyPromise from './utils/promise';
-import WeavyPostal from './utils/postal';
+import WeavyPostal from './utils/postal-parent';
 
 import WeavyRoot from './root';
 import WeavyPanels from './panels';
@@ -12,7 +12,6 @@ import WeavyOverlays from './overlays';
 import WeavyNavigation from './navigation';
 import WeavyHistory from './history';
 import WeavyAuthentications from './authentication';
-import WeavyRealtime from "./realtime";
 import WeavyApp from './app';
 
 console.info("weavy.js");
@@ -55,7 +54,7 @@ var Weavy = function () {
   var weavy = this;
 
   /**
-   * Main options for Weavy. The JWT option is required.
+   * Main options for Weavy. The `url` and `tokenFactory` option is required.
    * When weavy initializes, it connects to the server and processes the options as well as using them internally. 
    * 
    * @see [Client Options]{@link https://docs.weavy.com/client/development/options}
@@ -66,7 +65,7 @@ var Weavy = function () {
    * @property {string} [className] - Additional classNames added to weavy.
    * @property {string} [https=adaptive] - How to enforce https-links. <br> • **force** -  makes urls https.<br> • **adaptive** - enforces https if the calling site uses https.<br> • **default** - makes no change.
    * @property {string} [id] - An id for the instance. A unique id is always generated.
-   * @property {string} jwt - The JWT token passed to {@link WeavyAuthentication}.
+   * @property {function} tokenFactory - The async function returning a string access token passed to {@link WeavyAuthentication}.
    * @property {boolean} [init=true] - Should weavy initialize automatically?
    * @property {boolean} [includePlugins=true] - Whether all registered plugins should be enabled by default. If false, then each plugin needs to be enabled in plugin-options.
    * @property {boolean} [includeStyles=true] - Whether default styles should be enabled. If false, you need to provide a custom stylesheet.
@@ -85,12 +84,12 @@ var Weavy = function () {
    * @property {string} [tz] - Timezone identifier, e.g. <code>Pacific Standard Time</code>. When specified, this setting overrides the timezone setting on a user´s profile. The list of valid timezone identifiers can depend on the version and operating system of your Weavy server.
    * @property {string} [url] - The URL of the Weavy-installation to connect to. Defaults to the installation where the script came from.
    */
-  weavy.options = WeavyUtils.assign(Weavy.defaults);
+  weavy.options = assign(Weavy.defaults);
 
   // Extend default options with the passed in arguments
   for (var arg in arguments) {
     if (arguments[arg] && typeof arguments[arg] === "object") {
-      weavy.options = WeavyUtils.assign(weavy.options, arguments[arg], true);
+      weavy.options = assign(weavy.options, arguments[arg], true);
     }
   }
 
@@ -101,11 +100,11 @@ var Weavy = function () {
    * @returns {string}
    */
   function generateId(id) {
-    id = "wy-" + (id ? id.replace(new RegExp("^wy-"), '') : WeavyUtils.S4() + WeavyUtils.S4());
+    id = "wy-" + (id ? id.replace(new RegExp("^wy-"), '') : S4() + S4());
 
     // Make sure id is unique
     if (_weavyIds.indexOf(id) !== -1) {
-      id = generateId(id + WeavyUtils.S4());
+      id = generateId(id + S4());
     }
 
     return id;
@@ -293,32 +292,31 @@ var Weavy = function () {
   weavy.triggerEvent = weavy.events.triggerEvent;
 
 
-  // AUTHENTICATION & JWT
+  // AUTHENTICATION & ACCESS TOKEN
 
   /**
    * Reference to the instance of the WeavyAuthentication for the current server.
    * 
-   * You always need to define a JWT provider in your {@link Weavy#options}. 
-   * This may be a function that returns a JWT string or returns a promise that resolves a JWT string. 
-   * The function will be called again whenever a new JWT token is needed.
-   * You may also provide a JWT string directly, then you can't benifit from weavy requesting a new token when needed.
+   * You always need to define an async token factory in your {@link Weavy#options}. 
+   * This is an async function that returns a token string. 
+   * Whenever a new access token is needed, the async function will be called again with the previous token provided as argument.
    * 
    * See [Client Authentication]{@link https://docs.weavy.com/client/authentication} for full authentication documentation.
    * 
    * @type {WeavyAuthentication}
    * @category authentication
-   * @borrows WeavyAuthentication#setJwt as Weavy#authentication#setJwt
+   * @borrows WeavyAuthentication#setTokenFactory as Weavy#authentication#setTokenFactory
    * @borrows WeavyAuthentication#signIn as Weavy#authentication#signIn
    * @borrows WeavyAuthentication#signOut as Weavy#authentication#signOut
    */
   weavy.authentication = WeavyAuthentications.getAuthentication(weavy.url);
 
-  if (weavy.options.jwt === undefined && !weavy.authentication.isProvided()) {
-    weavy.error("specify a jwt string or a provider function in your options");
+  if (weavy.options.tokenFactory === undefined && !weavy.authentication.isProvided()) {
+    weavy.error("specify an async token factory in your options");
   }
 
   if (!weavy.authentication.isProvided() || !weavy.authentication.isInitialized()) {
-    weavy.authentication.init(weavy.options.jwt);
+    weavy.authentication.init(weavy.options.tokenFactory);
   }
 
   weavy.on(weavy.authentication, "user", function (e, auth) {
@@ -345,10 +343,6 @@ var Weavy = function () {
 
       // Refresh client data
       loadClientData();
-    }
-
-    if (auth.state !== "updated") {
-      weavy.realtime.disconnectAndConnect();
     }
   });
 
@@ -377,23 +371,12 @@ var Weavy = function () {
      * @event Weavy#authentication-error
      * @category authentication
      * @returns {Object}
-     * @property {string} method - Which metod that was used to authenticate "jwt" or "panel"
+     * @property {string} method - Which metod that was used to authenticate: "access_token"
      * @property {int} status - The HTTP error code from the server, like 401 for an unauthorized user
      * @property {string} message - The message from the server, like "Unauthorized"
      */
     weavy.triggerEvent("authentication-error", error);
   });
-
-
-
-  //// WEAVY REALTIME CONNECTION
-
-  /**
-   * Reference to the instance of the realtime connection to the server.
-   * 
-   * @type {external:WeavyRealtime}
-   **/
-  weavy.realtime = new WeavyRealtime(weavy.url, weavy.authentication.getJwt.bind(weavy.authentication, true));
 
 
   // PANELS
@@ -453,47 +436,21 @@ var Weavy = function () {
    *
    * The app needs to be defined using an app definition object containing at least an id, which will fetch or create the app on the server.
    * If the defined app already has been defined, the app will only be selected in the client.
-   * After the app is defined it can be quickly selected in the client using only the id (string) of the app or the server appId (int) of the app, which never will create nor fetch the app from the server.
+   * After the app is defined it can be quickly selected in the client using only the uid (string) of the app, which never will create nor fetch the app from the server.
    *
    * @example
    * // Define an app that will be fetched or created on the server
-   * var app = weavy.app({ id: "myid", type: "files", container: "#mycontainer" });
+   * var app = weavy.app({ uid: "my_uid", type: "files", container: "#mycontainer" });
    *
    * // Select the newly defined app
-   * var appAgain = weavy.app("myid");
+   * var appAgain = weavy.app("my_uid");
    *
    * @category apps
    * @function Weavy#app
-   * @param {string|WeavyApp#options} options - app id or app definition object.
+   * @param {string|WeavyApp#options} options - app uid or app definition object.
    * @returns {WeavyApp}
    */
-  weavy.app = function (options) {
-    var app;
-
-    var appSelector = WeavyApp.getAppSelector(options);
-
-    if (appSelector.selector) {
-      try {
-        app = weavy.apps.filter(function (a) { return a.match(appSelector.selector) }).pop();
-      } catch (e) { /* let app be null */ }
-
-      if (!app) {
-        if (appSelector.isConfig) {
-          app = new WeavyApp(weavy, options);
-          weavy.apps.push(app);
-          Promise.all([weavy.authentication.whenAuthorized(), weavy.whenInitialized()]).then(function () {
-            app.fetchOrCreate();
-          }).catch(function (reason) {
-            weavy.warn("Could not fetchOrCreate app", reason || "");
-          });
-        } else {
-          weavy.warn("App " + JSON.stringify(appSelector.selector) + " does not exist." + (appSelector.isId ? "" : " \n Use weavy.app(" + JSON.stringify(appSelector.selector) + ") to create the app."))
-        }
-      }
-    }
-
-    return app;
-  }
+  weavy.app = WeavyApp.select.bind(this, weavy, weavy.apps);
 
   // TIMEOUT HANDLING 
 
@@ -575,16 +532,6 @@ var Weavy = function () {
   weavy.whenInitialized = new WeavyPromise();
 
   /**
-   * Promise that resolves when the realtime connection has been started
-   * 
-   * @category promises
-   * @function
-   * @returns {WeavyPromise}
-   * @resolved when init event has been fully executed
-   */
-  weavy.whenConnected = new WeavyPromise();
-
-  /**
    * Promise that weavy has built all roots and nodes
    *
    * @example
@@ -615,7 +562,9 @@ var Weavy = function () {
 
     // Prepopulate apps
     if (weavy.options.apps) {
-      var apps = WeavyUtils.asArray(weavy.options.apps);
+      weavy.warn("Defining apps in weavy instance options is deprecated. Use weavy.app({ ...appOptions }) instead.");
+      
+      var apps = asArray(weavy.options.apps);
 
       apps.forEach(function (appOptions) {
         weavy.app(appOptions);
@@ -627,24 +576,18 @@ var Weavy = function () {
         weavy.whenReady.resolve();
       });
 
-      weavy.realtime.connect().then(() => {
+      weavy.on("message", { name: "authenticate" }, () => weavy.authentication.checkUserState("postal:authenticate"));
+
+      /*
         // Check user state when connection has been reconnected
         weavy.on(weavy.realtime, "reconnected.connection", function () {
           if (weavy.authentication.isAuthenticated()) {
             // Check if user state is still valid
-            weavy.authentication.updateUserState("connection:reconnected");
+            weavy.authentication.checkUserState("connection:reconnected");
           }
         });
+      */
 
-        // Reset whenConnected promise when the connection has stopped
-        weavy.on(weavy.realtime, "close.connection", () => weavy.whenConnected.reset());
-
-        // Validate user authentication when the server asks for it
-        weavy.realtime.subscribe("authenticate");
-        weavy.on(weavy.realtime, "authenticate", () => weavy.authentication.updateUserState("weavy.realtime:authenticate"));
-
-        weavy.whenConnected.resolve();
-      });
     });
   });
 
@@ -663,7 +606,7 @@ var Weavy = function () {
    */
   weavy.init = function (options) {
 
-    weavy.options = WeavyUtils.assign(weavy.options, options);
+    weavy.options = assign(weavy.options, options);
 
     /**
      * Event that is triggered when the weavy instance is initiated. This is done automatically unless you specify `init: false` in {@link Weavy#options}.
@@ -720,12 +663,6 @@ var Weavy = function () {
       var fetchInitUrl = new URL(initUrl, weavy.url).href;
 
       var initData = {
-        /*apps: weavy.apps.map(function (space) {
-            if (!space.isLoading) {
-                space.isLoading = true;
-                return space.options;
-            }
-        }).filter((s) => s), // Remove empty*/
         plugins: weavy.options.plugins,
         version: weavy.version
       }
@@ -740,7 +677,7 @@ var Weavy = function () {
         initData.theme = weavy.options.theme;
       }
 
-      weavy.ajax(fetchInitUrl, initData, "POST", null, true).then(function (clientData) {
+      weavy.fetch(fetchInitUrl, initData, "POST", null, true).then(function (clientData) {
 
         /**
          * Triggered when init data has been loaded from the server.
@@ -777,7 +714,7 @@ var Weavy = function () {
       delete clientVersion.groups.build;
       delete serverVersion.groups.build;
 
-      if (!WeavyUtils.eqObjects(clientVersion.groups, serverVersion.groups, true)) {
+      if (!eqObjects(clientVersion.groups, serverVersion.groups, true)) {
         let versionMismatchMessage = "Weavy client/server version mismatch! \nclient: " + weavy.version + " \nserver: " + weavy.data.version;
         
         let majorMatch = clientVersion.groups.major === serverVersion.groups.major;
@@ -884,7 +821,7 @@ var Weavy = function () {
     // TODO: MAKE CREATEROOT ASYNC
 
     var rootId = weavy.getId(id);
-    var parentElement = WeavyUtils.asElement(parentSelector);
+    var parentElement = asElement(parentSelector);
 
     if (!parentElement) {
       weavy.error("No parent container defined for createRoot", rootId);
@@ -911,7 +848,7 @@ var Weavy = function () {
     // add container
     if (!weavy.getRoot()) {
       // append container to target element || html
-      var rootParent = WeavyUtils.asElement(weavy.options.container) || document.documentElement;
+      var rootParent = asElement(weavy.options.container) || document.documentElement;
       var root = weavy.root = weavy.createRoot.call(weavy, rootParent);
       weavy.nodes.container = root.root;
       weavy.nodes.global = root.container;
@@ -950,8 +887,10 @@ var Weavy = function () {
       statusFrame.setAttribute("name", weavy.getId("status-check"));
 
       var requestStorageAccess = function () {
-        var msg = WeavyUtils.asElement('<span>Third party cookies are required to use this page. </span>')
-        var msgButton = WeavyUtils.asElement('<button class="wy-button wy-button-primary" style="pointer-events: auto;">Enable cookies</button>');
+        whenStatusTimeout.cancel();
+        
+        var msg = asElement('<span>Third party cookies are required to use this page. </span>')
+        var msgButton = asElement('<button class="wy-button wy-button-primary" style="pointer-events: auto;">Enable cookies</button>');
         var storageAccessWindow;
 
         msgButton.onclick = function () {
@@ -1010,7 +949,7 @@ var Weavy = function () {
 
       // Frame network investigator triggered when status frame timeout
       whenStatusTimeout.then(function () {
-        weavy.ajax(statusUrl).then(function (response) {
+        weavy.fetch(statusUrl).then(function (response) {
           weavy.warn("Status check timeout. Please make sure your web server is properly configured.")
 
           if (response.ok) {
@@ -1113,9 +1052,9 @@ var Weavy = function () {
   /**
    * Method for calling JSON API endpoints on the server. You may send data along with the request or retrieve data from the server.
    * 
-   * Fetch API is used internally and you may override or extend any settings in the {@link external:fetch} by providing custom [fetch init settings]{@link external:fetchxSettings}.
+   * Fetch API is used internally and you may override or extend any settings in the {@link external:fetch} by providing custom [fetch init settings]{@link external:fetchSettings}.
    * 
-   * You may of course call the endpoints using any other preferred AJAX method, but this method is preconfigured with proper encoding and crossdomain settings.
+   * You may of course call the endpoints using any other preferred fetch or AJAX method, but this method is preconfigured with proper encoding and crossdomain settings.
    *
    * @param {string|URL} url - URL to the JSON endpoint. May be relative to the connected server.
    * @param {object} [data] - Data to send. May be an object that will be encoded or a string with pre encoded data.
@@ -1123,19 +1062,19 @@ var Weavy = function () {
    * @param {external:fetchSettings} [settings] - Settings to extend or override [fetch init settings]{@link external:fetchSettings}.
    * @returns {Promise}
    */
-  weavy.ajax = function (url, data, method, settings) {
+  weavy.fetch = function (url, data, method, settings) {
     url = new URL(url, weavy.url);
     method = method || "GET";
-    data = data && typeof data === "string" && data || method !== "GET" && data && JSON.stringify(data, WeavyUtils.sanitizeJSON) || data || "";
+    data = data && typeof data === "string" && data || method !== "GET" && data && JSON.stringify(data, sanitizeJSON) || data || "";
 
     var isUnique = !!(method !== "GET" || data);
     var isSameOrigin = url.origin === weavy.url.origin;
 
     if (!isSameOrigin) {
-      return Promise.reject(new Error("weavy.ajax: Only requests to the weavy server are alllowed."))
+      return Promise.reject(new Error("weavy.fetch: Only requests to the weavy server are allowed."))
     }
 
-    settings = WeavyUtils.assign({
+    settings = assign({
       method: method,
       mode: 'cors', // no-cors, *cors, same-origin
       cache: isUnique ? 'no-cache' : 'default', // *default, no-cache, reload, force-cache, only-if-cached
@@ -1157,25 +1096,25 @@ var Weavy = function () {
       url.search = (url.search ? url.search + "&" : "") + urlData.toString();
     }
     return weavy.authentication.whenAuthenticated().then(function () {
-      return weavy.authentication.getJwt().then(function (token) {
+      return weavy.authentication.getAccessToken().then(function (token) {
         if (typeof token !== "string") {
-          return Promise.reject(new Error("weavy.ajax: Provided JWT is empty!"))
+          return Promise.reject(new Error("weavy.fetch: Provided access token is empty!"))
         }
 
-        // JWT configured, use bearer token
+        // access token configured, use bearer token
         settings.headers.Authorization = "Bearer " + token;
 
         return window.fetch(url.toString(), settings).then(function (response) {
           if (response.status === 401 || response.status === 403) {
-            weavy.warn("weavy.ajax: JWT failed, trying again");
-            return weavy.authentication.getJwt(true).then(function (token) {
+            weavy.warn("weavy.fetch: access token failed, trying again");
+            return weavy.authentication.getAccessToken(true).then(function (token) {
               settings.headers.Authorization = "Bearer " + token;
               return window.fetch(url.toString(), settings);
             })
           }
           return response;
-        }).then(WeavyUtils.processJSONResponse).catch(function (error) {
-          weavy.error("weavy.ajax: request failed!", error.message);
+        }).then(processJSONResponse).catch(function (error) {
+          weavy.error("weavy.fetch: request failed!", error.message);
           return Promise.reject(error);
         });
       })
@@ -1184,11 +1123,10 @@ var Weavy = function () {
 
   /**
    * Destroys the instance of Weavy. You should also remove any references to weavy after you have destroyed it. The [destroy event]{@link Weavy#event:destroy} will be triggered before anything else is removed so that plugins etc may unregister and clean up, before the instance is gone.
-   * @param {boolean} [keepConnection=false] - Set to true if you want the realtime-connection to remain connected.
    * @emits Weavy#destroy
    * @returns {Promise}
    */
-  weavy.destroy = function (keepConnection) {
+  weavy.destroy = function () {
     var whenDestroyed = new WeavyPromise();
     var waitFor = [];
 
@@ -1226,10 +1164,6 @@ var Weavy = function () {
         }
 
         _weavyIds.splice(_weavyIds.indexOf(weavy.getId()), 1);
-
-        if (!keepConnection && _weavyIds.length === 0) {
-          waitFor.push(weavy.realtime.disconnect());
-        }
 
         // Delete everything in the instance
         for (var prop in weavy) {
@@ -1342,7 +1276,7 @@ var Weavy = function () {
       weavy.debug("Running Weavy plugin:", plugin);
 
       // Extend plugin options
-      weavy.options.plugins[plugin] = WeavyUtils.assign(Weavy.plugins[plugin].defaults, WeavyUtils.isPlainObject(weavy.options.plugins[plugin]) ? weavy.options.plugins[plugin] : {}, true);
+      weavy.options.plugins[plugin] = assign(Weavy.plugins[plugin].defaults, isPlainObject(weavy.options.plugins[plugin]) ? weavy.options.plugins[plugin] : {}, true);
 
       // Run the plugin
       weavy.plugins[plugin] = new Weavy.plugins[plugin](weavy, weavy.options.plugins[plugin]) || true;
@@ -1464,9 +1398,3 @@ Object.defineProperty(Weavy, 'version', {
 });
 
 export default Weavy;
-
-
-/**
- * @external WeavyRealtime
- * @see https://github.com/weavy/realtime
- */

@@ -1,7 +1,6 @@
 import WeavyPromise from './utils/promise';
-import WeavyUtils from './utils/utils';
-import WeavyPostal from './utils/postal';
-import wvy from './utils/wvy';
+import { isPlainObject, assign } from './utils/utils';
+import WeavyPostal from './utils/postal-parent';
 
 
 //console.debug("panels.js");
@@ -36,7 +35,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
 
   var panelElementId = weavy.getId("panel-container-" + panelId);
 
-  if (!WeavyUtils.isPlainObject(attributes)) {
+  if (!isPlainObject(attributes)) {
     attributes = {};
   }
 
@@ -153,7 +152,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   var _isLoading = false;
 
   /**
-   * Registers the panel frame window in wvy.postal and adds a ready listener for the panel and inits the loading indication.
+   * Registers the panel frame window in postal and adds a ready listener for the panel and inits the loading indication.
    */
   var registerLoading = function (panel) {
     if (!panel.isRegistered) {
@@ -478,7 +477,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
       if (options.controls === true || options.controls.close) {
         var close = document.createElement("div");
         close.className = "wy-icon" + (typeof options.controls.close === "string" ? " " + options.controls.close : "");
-        close.title = wvy.t("Close");
+        close.title = "Close";
         close.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" /></svg>';
         weavy.on(close, "click", panel.close.bind(panel));
         controls.appendChild(close);
@@ -881,7 +880,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
    * @returns {Object}
    * @property {string} panelId - Id of the panel
    */
-  weavy.on(WeavyPostal, "message", { weavyId: weavy.getId(), windowName: panel.frame.name }, (e, message) => panel.triggerEvent("message", WeavyUtils.assign(message, { panelId: panelId })));
+  weavy.on(WeavyPostal, "message", { weavyId: weavy.getId(), windowName: panel.frame.name }, (e, message) => panel.triggerEvent("message", assign(message, { panelId: panelId })));
 
   /**
    * Sends a postMessage to the panel iframe.

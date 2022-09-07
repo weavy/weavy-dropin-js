@@ -1,4 +1,4 @@
-import WeavyUtils from './utils/utils';
+import { assign, isPlainObject, eqString } from './utils/utils';
 import WeavyPromise from './utils/promise';
 
 //console.debug("app.js");
@@ -7,7 +7,7 @@ import WeavyPromise from './utils/promise';
  * @class WeavyApp
  * @classdesc Base class for representation of apps in Weavy.
  * @example
- * var app = weavy.app({ id: "myapp1", type: "posts" });
+ * var app = weavy.app({ uid: "myapp1", type: "posts" });
  */
 
 /**
@@ -68,11 +68,11 @@ var WeavyApp = function (weavy, options, data) {
   app.url = null;
 
   /**
-   * The id of the app, defined in options.
+   * The uid of the app, defined in options.
    * @category properties
    * @type {string}
    */
-  app.id = null;
+  app.uid = null;
 
   /**
    * The name of the app, defined in options or received from app data.
@@ -105,11 +105,11 @@ var WeavyApp = function (weavy, options, data) {
   app.weavy = weavy;
 
   /**
-   * Options for defining the app. Id and type is required.
+   * Options for defining the app. Type is required.
    * 
    * @example
    * weavy.app({
-   *   id: "myid",
+   *   uid: "myid",
    *   name: "Posts",
    *   type: "posts",
    *   container: "#myappcontainer",
@@ -121,7 +121,7 @@ var WeavyApp = function (weavy, options, data) {
    * @typedef
    * @member
    * @type {Object}
-   * @property {string} id - The id representing the app in the context environment.
+   * @property {string} uid - The uid representing the app in the context environment.
    * @property {string} name - The display name of the app.
    * @property {Element|jQuery|string} container - The container where the app should be placed.
    * @property {string} type - The kind of app. <br> • posts <br> • files <br> • messenger <br> • notifications <br> • comments <br> • chat
@@ -134,7 +134,7 @@ var WeavyApp = function (weavy, options, data) {
    * 
    * @example
    * {
-   *   id: "files",
+   *   uid: "files",
    *   url: "/e/apps/2136",
    *   type: "files"
    * }
@@ -143,7 +143,7 @@ var WeavyApp = function (weavy, options, data) {
    * @typedef
    * @member
    * @type {Object}
-   * @property {string} id - The id for the app.
+   * @property {string} uid - The uid for the app.
    * @property {string} url - The base url to the app.
    * @property {string} type - The type of the app.
    */
@@ -198,7 +198,7 @@ var WeavyApp = function (weavy, options, data) {
    * weavy.app("myapp").triggerEvent("myevent", [eventData])
    */
   app.triggerEvent = function (name, data) {
-    data = WeavyUtils.assign(data, { app: app });
+    data = assign(data, { app: app });
     return weavy.events.triggerEvent.call(app, name, data);
   }
 
@@ -277,7 +277,7 @@ var WeavyApp = function (weavy, options, data) {
    */
   app.configure = function (options, data) {
     if (options && typeof options === "object") {
-      app.options = WeavyUtils.assign(app.options, options, true);
+      app.options = assign(app.options, options, true);
     }
 
     if (data && typeof data === "object") {
@@ -290,8 +290,8 @@ var WeavyApp = function (weavy, options, data) {
         app.container = app.options.container;
       }
 
-      if (app.id === null && app.options.id) {
-        app.id = app.options.id;
+      if (app.uid === null && app.options.uid) {
+        app.uid = app.options.uid;
       }
 
       if (app.name === null && app.options.name) {
@@ -305,8 +305,8 @@ var WeavyApp = function (weavy, options, data) {
 
     if (app.data && typeof app.data === "object") {
 
-      if (!app.id && app.data.id) {
-        app.id = app.data.id;
+      if (!app.uid && app.data.uid) {
+        app.uid = app.data.uid;
       }
 
       if(app.url === null && app.data.url) {
@@ -353,7 +353,7 @@ var WeavyApp = function (weavy, options, data) {
 
       var initAppUrl = new URL(appUrl, weavy.url);
 
-      weavy.ajax(initAppUrl, app.options, "POST").then(function (data) {
+      weavy.fetch(initAppUrl, app.options, "POST").then(function (data) {
         app.data = data;
         app.configure.call(app);
       }).catch(function (error) {
@@ -377,8 +377,10 @@ var WeavyApp = function (weavy, options, data) {
   app.build = function () {
     weavy.authentication.whenAuthorized().then(function () {
 
+      var appId = app.uid || app.type;
+
       if (app.options && app.data) {
-        let appRootId = "app-root-" + (app.options.group || app.id);
+        let appRootId = "app-root-" + (app.options.group || appId);
         var root = app.root ??= weavy.getRoot(appRootId);
         if (!root && app.container) {
           try {
@@ -386,19 +388,19 @@ var WeavyApp = function (weavy, options, data) {
 
             root.apps = new Set();
 
-            root.container.panels = weavy.panels.createContainer("app-container-" + app.id);
+            root.container.panels = weavy.panels.createContainer("app-container-" + appId);
             root.container.panels.eventParent = app;
             root.container.appendChild(root.container.panels.node);
           } catch (e) {
-            weavy.warn("could not create app in container", { id: app.id }, e);
+            weavy.warn("could not create app in container:", appId, e);
           }
         }
 
         if (!app.isBuilt && root) {
           app.isBuilt = true;
-          weavy.debug("Building app", app.id);
+          weavy.debug("Building app", appId);
 
-          var panelId = "app-" + app.id;
+          var panelId = "app-" + appId;
           var controls = app.options && app.options.controls !== undefined ? app.options.controls : false;
 
           let whenStylesLoaded = app.root.addStyles(app.options);
@@ -451,7 +453,7 @@ var WeavyApp = function (weavy, options, data) {
            */
           app.on("before:message", (e, message) => {
             if (message.panelId === panelId) {
-              return WeavyUtils.assign(message, { app: app });
+              return assign(message, { app: app });
             }
           });
 
@@ -471,7 +473,7 @@ var WeavyApp = function (weavy, options, data) {
 
           // Send styles to frame on ready and when styles are updated
           app.on("panel-ready root-styles", () => app.root.getStyles().then((styles) => {
-            app.postMessage({ name: "styles", id: app.id, css: styles, className: options.className });
+            app.postMessage({ name: "styles", id: app.uid, css: styles, className: options.className });
           }));
 
           whenStylesLoaded.then((styles) => {
@@ -544,10 +546,10 @@ WeavyApp.prototype.open = function (destination, noHistory) {
     }
 
     return Promise.all(openPromises).catch(function (reason) {
-      weavy.warn("Could not open app", app.id, reason);
+      weavy.warn("Could not open app", app.uid, reason);
     });
   }, function (reason) {
-    weavy.warn("Could not open app", app.id, reason);
+    weavy.warn("Could not open app", app.uid, reason);
   });
 }
 
@@ -594,7 +596,7 @@ WeavyApp.prototype.toggle = function (destination) {
     }
 
     return Promise.all(togglePromises).catch(function (reason) {
-      weavy.warn("Could not toggle app", app.id, reason);
+      weavy.warn("Could not toggle app", app.uid, reason);
     });
   });
 }
@@ -626,13 +628,13 @@ WeavyApp.prototype.remove = function () {
   var app = this;
   var weavy = this.weavy;
 
-  weavy.debug("Removing app", app.id);
+  weavy.debug("Removing app", app.uid);
 
   var whenPanelRemoved = app.panel ? app.panel.remove(null, true) : Promise.resolve();
 
   var whenRemoved = whenPanelRemoved.then(function () {
     if ('getRoot' in weavy) {
-      let appRootId = "app-root-" + (app.options.group || app.id);
+      let appRootId = "app-root-" + (app.options.group || (app.uid || app.type));
       var appRoot = weavy.getRoot(appRootId);
 
       if (appRoot && appRoot.apps.size === 0) {
@@ -681,7 +683,7 @@ WeavyApp.prototype.postMessage = function (message, transfer) {
 
   if (typeof styles === "string") {
     css = styles;
-  } else if (WeavyUtils.isPlainObject(styles)) {
+  } else if (isPlainObject(styles)) {
     css = styles.css;
     stylesheet = styles.stylesheet;
   }
@@ -692,19 +694,24 @@ WeavyApp.prototype.postMessage = function (message, transfer) {
 };
 
 /**
- * Check if another app or an object is matching this app. It checks for a match of the id property or matching the url property against the base url.
+ * Check if another app or an object is matching this app. It checks for a match of the uid property or matching the url property against the base url.
  * 
  * @category methods
  * @function WeavyApp#match
  * @param {WeavyApp|Object} options
- * @param {int} [options.id] - Optional id to match.
+ * @param {int} [options.uid] - Optional uid to match.
+ * @param {int} [options.type] - Optional type to match when no uid is provided.
  * @param {URL} [options.url] - Optional URL to match against base path of the app.
  * @returns {boolean} 
  */
 WeavyApp.prototype.match = function (options) {
   if (options) {
-    if (options.id && this.id) {
-      return WeavyUtils.eqString(options.id, this.id);
+    if (options.uid && this.uid) {
+      return eqString(options.uid, this.uid);
+    }
+
+    if (options.type && this.type && !this.uid) {
+      return eqString(options.type, this.type)
     }
 
     if (options.url && this.url) {
@@ -727,28 +734,65 @@ WeavyApp.prototype.match = function (options) {
 
 
 /**
- * Function for making an id/object in to an app definition object
+ * Function for making an object in to an app definition object
  * 
  * @function WeavyApp.getAppSelector
- * @param {string|WeavyApp#options} options - The id/object to parse
+ * @param {WeavyApp#options} options - The object to parse
  * @returns {Object} appSelector
- * @returns {boolean} appSelector.isId - Is appOptions parsed as a id (string)?
- * @returns {boolean} appSelector.isConfig - Is AppOptions parsed as an app definition (Object)?
+ * @returns {boolean} appSelector.isUid - Is AppOptions parsed as an uid app definition (Object)?
+ * @returns {boolean} appSelector.isType - Is AppOptions parsed as a type app definition (Object)?
  * @returns {Object} appSelector.selector - App definition object
  */
 WeavyApp.getAppSelector = (options) => {
-  var isId = typeof options === "string";
-  var isConfig = WeavyUtils.isPlainObject(options) && options.id;
+  var isUid = isPlainObject(options) && options.uid;
+  var isType = isPlainObject(options) && !options.uid && options.type;
 
-  var selector = isConfig && options || isId && { id: options };
+  var selector = (isUid || isType) && options;
 
-  if (!selector) {
-    if ('id' in options) {
-      selector = { id: options.id };
+  return { isUid: isUid, isType: isType, selector: selector };
+}
+
+/**
+   * Selects, fetches or creates an app.
+   *
+   * The app needs to be defined using an app definition object containing at least an uid or type, which will fetch or create the app on the server.
+   * If the defined app already has been defined, the app will only be selected in the client.
+   *
+   * @example
+   * // Define an app that will be fetched or created on the server
+   * var app = weavy.app({ uid: "my_uid", type: "files", container: "#mycontainer" });
+   *
+   * @category apps
+   * @function WeavyApp#select
+   * @param {WeavyApp#options} options - app definition object.
+   * @returns {WeavyApp}
+   */
+ WeavyApp.select = (weavy, apps, options) => {
+  var app;
+
+  var appSelector = WeavyApp.getAppSelector(options);
+
+  if (appSelector.selector) {
+    try {
+      app = apps.filter(function (a) { return a.match(appSelector.selector) }).pop();
+    } catch (e) { /* let app be null */ }
+
+    if (!app) {
+      if (appSelector.isUid || appSelector.isType) {
+        app = new WeavyApp(weavy, options);
+        apps.push(app);
+        Promise.all([weavy.authentication.whenAuthorized(), weavy.whenInitialized()]).then(function () {
+          app.fetchOrCreate();
+        }).catch(function (reason) {
+          weavy.warn("Could not fetchOrCreate app", reason || "");
+        });
+      } else {
+        weavy.warn("App " + JSON.stringify(appSelector.selector) + " is not defined properly.")
+      }
     }
   }
 
-  return { isId: isId, isConfig: isConfig, selector: selector };
+  return app;
 }
 
 

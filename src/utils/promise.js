@@ -1,26 +1,4 @@
-﻿/* eslint-env commonjs, amd */
-
-// UMD based on https://github.com/umdjs/umd/blob/master/templates/returnExports.js
-// TODO: move to ES6 and transpiler
-
-(function (root, factory) {
-    if (typeof define === 'function' && define.amd) {
-        // AMD. Register as an anonymous module.
-        define(factory);
-    } else if (typeof module === 'object' && module.exports) {
-        // Node. Does not work with strict CommonJS, but
-        // only CommonJS-like environments that support module.exports,
-        // like Node.
-        module.exports = factory();
-    } else {
-        // Browser globals (root is window)
-        root.wvy = root.wvy || {};
-        root.wvy.promise = factory();
-    }
-}(typeof self !== 'undefined' ? self : this, function () {
-    //console.debug("promise.js", window.name);
-
-    // This event is handled using same-origin script policy
+﻿    // This event is handled using same-origin script policy
     window.addEventListener("unhandledrejection", function (e) {
         if (e.promise.weavy) {
             //console.debug("Uncaught (in weavy promise)", e.reason);
@@ -205,6 +183,5 @@
         return promise;
     }
 
-    return WeavyPromiseWrapper;
-}));
+    export default WeavyPromiseWrapper;
 

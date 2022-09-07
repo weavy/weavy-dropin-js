@@ -33,7 +33,7 @@ class BadgesPlugin {
      */
     this.getBadges = (app) => {
       if (app.type === "messenger") {
-        return weavy.ajax("dropin/client/conversation-badge/").then(
+        return weavy.fetch("dropin/client/conversation-badge/").then(
           (conversationBadge) => conversationBadge.private + conversationBadge.rooms
         );
       }
@@ -54,7 +54,7 @@ class BadgesPlugin {
         if (app.options.badge) {
 
           // poll until app is loaded
-          polling.set(app, window.setInterval(() => badgesPlugin.get(app), 5000));
+          polling.set(app, window.setInterval(() => badgesPlugin.get(app), options.pollingTime));
           
           app.whenLoaded().then(() => {
             // cancel polling            
@@ -102,7 +102,7 @@ class BadgesPlugin {
  * 
  * @example
  * Weavy.plugins.badges.defaults = {
- *     
+ *  pollingTime: 60 * 1000
  * };
  * 
  * @name defaults
@@ -110,7 +110,7 @@ class BadgesPlugin {
  * @type {Object}
  */
 BadgesPlugin.defaults = {
-
+  pollingTime: 60 * 1000
 };
 
 // Register and return plugin

@@ -1,7 +1,6 @@
-import WeavyUtils from './utils';
+import { isPlainObject, eqObjects, S4 } from './utils';
 import WeavyPromise from './promise';
 import WeavyConsole from './console';
-import wvy from './wvy';
 
 //console.debug("postal.js", self.name);
 
@@ -25,10 +24,6 @@ function WeavyPostal(options) {
     var _whenLeader = new WeavyPromise();
     var _isLeader = null;
 
-    var _parentWeavyId = null;
-    var _parentWindow = null;
-    var _parentOrigin = null;
-    var _parentName = null;
     var _origin = extractOrigin(window.location.href);
 
     function extractOrigin(url) {
@@ -43,10 +38,9 @@ function WeavyPostal(options) {
 
     function distributeMessage(e, fromFrame) {
         var fromSelf = e.source === window && e.origin === _origin;
-        var fromParent = e.source === _parentWindow && e.origin === _parentOrigin;
         fromFrame ||= contentWindowOrigins.has(e.source) && e.origin === contentWindowOrigins.get(e.source);
 
-        if (fromSelf || fromParent || fromFrame) {
+        if (fromSelf || fromFrame) {
 
             var genericDistribution = !e.data.weavyId || e.data.weavyId === true;
 
@@ -68,7 +62,7 @@ function WeavyPostal(options) {
                 var matchingName = listener.name === messageName || listener.name === "message";
                 var genericListener = listener.selector === null;
                 var matchingWeavyId = listener.selector === e.data.weavyId;
-                var matchingDataSelector = WeavyUtils.isPlainObject(listener.selector) && WeavyUtils.eqObjects(listener.selector, e.data, true);
+                var matchingDataSelector = isPlainObject(listener.selector) && eqObjects(listener.selector, e.data, true);
 
                 if (matchingName && (genericDistribution || genericListener || matchingWeavyId || matchingDataSelector)) {
 
@@ -95,73 +89,29 @@ function WeavyPostal(options) {
 
             switch (e.data.name) {
                 case "register-child":
-                    if (!_parentWindow) {
-                        if (!contentWindowWeavyIds.has(e.source)) {
-                            console.warn("register-child: contentwindow not pre-registered");
-                        }
-
-                        if (contentWindowOrigins.get(e.source) !== e.origin) {
-                            console.error("register-child: " + contentWindowNames.get(e.source) + " has invalid origin", e.origin);
-                            return;
-                        }
-
-                        try {
-                            var weavyId = contentWindowWeavyIds.get(e.source);
-                            var contentWindowName = contentWindowNames.get(e.source);
-
-                            if (contentWindowName) {
-                                e.source.postMessage({
-                                    name: "register-window",
-                                    windowName: contentWindowName,
-                                    weavyId: weavyId || true,
-                                }, e.origin);
-                            }
-                        } catch (e) {
-                            console.error("could not register frame window", weavyId, contentWindowName, e);
-                        }
-                    }
-                    break;
-                case "register-window":
-                    if (!_parentWindow) {
-                        //console.debug("registering frame window");
-                        _parentOrigin = e.origin;
-                        _parentWindow = e.source;
-                        _parentName = e.data.windowName;
-                        _parentWeavyId = e.data.weavyId;
+                    if (!contentWindowWeavyIds.has(e.source)) {
+                        console.warn("register-child: contentwindow not pre-registered");
                     }
 
-                    window.addEventListener("unload", () => {
-                        postToParent({ name: "unready" });
-                    })
-
-                    console.debug("is not leader");
-                    _isLeader = false;
-                    _whenLeader.resolve(false);
-
-                    var statusCode = wvy.context && wvy.context.statusCode;
-                    var statusDescription = wvy.context && wvy.context.statusDescription;
-                    var navbarMiddle = document.querySelector(".navbar-middle");
-                    var title = navbarMiddle && navbarMiddle.innerText;
+                    if (contentWindowOrigins.get(e.source) !== e.origin) {
+                        console.error("register-child: " + contentWindowNames.get(e.source) + " has invalid origin", e.origin);
+                        return;
+                    }
 
                     try {
-                        e.source.postMessage({ name: "ready", windowName: e.data.windowName, weavyId: e.data.weavyId, location: window.location.href, title: title, statusCode: statusCode, statusDescription: statusDescription }, e.origin);
+                        var weavyId = contentWindowWeavyIds.get(e.source);
+                        var contentWindowName = contentWindowNames.get(e.source);
+
+                        if (contentWindowName) {
+                            e.source.postMessage({
+                                name: "register-window",
+                                windowName: contentWindowName,
+                                weavyId: weavyId || true,
+                            }, e.origin);
+                        }
                     } catch (e) {
-                        console.error("register-window could not post back ready-message to source", e);
+                        console.error("could not register frame window", weavyId, contentWindowName, e);
                     }
-
-                    if (wvy.whenLoaded) {
-                        wvy.whenLoaded.then(function () {
-                            postToParent({ name: "load" });
-                        });
-                    }
-
-                    if (inQueue.length) {
-                        inQueue.forEach(function (messageEvent) {
-                            distributeMessage(messageEvent)
-                        });
-                        inQueue = [];
-                    }
-
                     break;
                 case "ready":
                     if (contentWindowsByWeavyId.has(e.data.weavyId) && contentWindowNames.has(e.source) && contentWindowsByWeavyId.get(e.data.weavyId).get(contentWindowNames.get(e.source))) {
@@ -171,19 +121,14 @@ function WeavyPostal(options) {
 
                     break;
                 case "unready":
-                    // Source window does no loanger exist at this point
+                    // Source window does no longer exist at this point
                     if (contentWindowsByWeavyId.has(e.data.weavyId)) {
                         distributeMessage(e, true);
                     }
 
                     break;
-                case "reload":
-                    console.debug("reload", _parentName, !!e.data.force);
-                    window.location.reload(e.data.force);
-
-                    break;
                 default:
-                    if (e.source === window || _parentWindow || contentWindowsByWeavyId.size) {
+                    if (e.source === window || contentWindowsByWeavyId.size) {
                         distributeMessage(e);
                     } else {
                         inQueue.push(e);
@@ -222,7 +167,7 @@ function WeavyPostal(options) {
             var nameMatch = name === listener.name;
             var handlerMatch = handler === listener.handler;
             var stringSelectorMatch = typeof selector === "string" && selector === listener.selector;
-            var plainObjectMatch = WeavyUtils.isPlainObject(selector) && WeavyUtils.eqObjects(selector, listener.selector);
+            var plainObjectMatch = isPlainObject(selector) && eqObjects(selector, listener.selector);
             var offMatch = nameMatch && handlerMatch && (selector === null || stringSelectorMatch || plainObjectMatch);
             return !(offMatch);
         });
@@ -304,15 +249,12 @@ function WeavyPostal(options) {
         }
 
         var toSelf = contentWindow === window.self;
-        var toParent = _parentWindow && _parentWindow !== window && _parentWindow === contentWindow;
-        var origin = toSelf ? extractOrigin(window.location.href) :
-            toParent ? _parentOrigin :
-                contentWindowOrigins.get(contentWindow);
-        var validWindow = toSelf || toParent || contentWindow && origin === contentWindowDomain.get(contentWindow)
+        var origin = toSelf ? extractOrigin(window.location.href) : contentWindowOrigins.get(contentWindow);
+        var validWindow = toSelf || contentWindow && origin === contentWindowDomain.get(contentWindow)
 
         if (validWindow) {
             if (!message.weavyMessageId) {
-                message.weavyMessageId = WeavyUtils.S4() + WeavyUtils.S4();
+                message.weavyMessageId = S4() + S4();
             }
 
             queueMicrotask(() => {
@@ -399,33 +341,9 @@ function WeavyPostal(options) {
         return whenPostMessage(window.self, message, transfer);
     }
 
-    function postToParent(message, transfer) {
-        if (typeof message !== "object" || !message.name) {
-            console.error("postToParent() Invalid message format", message);
-            return;
-        }
-
-        return _whenLeader().then(function (isLeader) {
-            if (!isLeader) {
-                if (message.weavyId === undefined) {
-                    message.weavyId = _parentWeavyId;
-                }
-
-                if (message.windowName === undefined) {
-                    message.windowName = _parentName;
-                }
-
-                return whenPostMessage(_parentWindow, message, transfer);
-            } else {
-                return WeavyPromise.resolve();
-            }
-        });
-    }
-
     function postToSource(e, message, transfer) {
         if (e.source && e.data.weavyId !== undefined) {
             var fromSelf = e.source === window.self && e.origin === _origin;
-            var fromParent = e.source === _parentWindow && e.origin === _parentOrigin;
             var fromFrame = contentWindowOrigins.has(e.source) && e.origin === contentWindowOrigins.get(e.source);
 
             if (transfer === null) {
@@ -433,7 +351,7 @@ function WeavyPostal(options) {
                 transfer = undefined;
             }
 
-            if (fromSelf || fromParent || fromFrame) {
+            if (fromSelf || fromFrame) {
                 message.weavyId = e.data.weavyId;
 
                 try {
@@ -454,100 +372,7 @@ function WeavyPostal(options) {
     }
 
     function init() {
-
-        // Register in parent or opener
-        var parent = window.self.opener !== window.self && window.self.opener || window.self.parent !== window.self && window.self.parent;
-
-        if (parent) {
-            var parentOrigins;
-
-            try {
-                // Server configured cors-origins
-                // Origins containing wildcards will be treated as generic wildcard origin
-                if (!parentOrigins) {
-                    let corsOrigins = wvy.config.allowedOrigins;
-                    if (corsOrigins && !(corsOrigins.length === 1 && corsOrigins[0] === "*")) {
-                        parentOrigins = corsOrigins;
-                        console.log("Postal using allowed origin");
-                    }
-                }
-            } catch (e) { /* no parentOrigins assigned */ }
-
-            try {
-                // Same-domain origin, only available when samedomain is successfully configured
-                if (!parentOrigins) {
-                    parentOrigins = [parent.location.origin];
-                    if (parentOrigins) {
-                        console.log("Postal using same-domain origin");
-                    }
-                }
-            } catch (e) { /* no parentOrigins assigned */ }
-
-            // Default if no origin is configured
-            parentOrigins = parentOrigins || ["*"];
-
-            // Filter and sort
-            parentOrigins = Array.from(parentOrigins)
-                .map(e => e.indexOf("*") !== -1 ? "*" : e) // Uniform wildcards
-                .filter((e, i, a) => a.indexOf(e) === i) // Unique entries
-                .sort((a, b) => a.indexOf("*") - b.indexOf("*")); // Sort explicit origins before any wildcards
-
-            // Filter by ancestor to exclude mismatching origins
-            if (parentOrigins.length > 1) {
-                var parentAncestor;
-
-                // Try ancestorOrigins
-                if ('ancestorOrigins' in window.location) {
-                    parentAncestor = window.location.ancestorOrigins[0];
-                }
-
-                // Try accessing same-site location
-                if (!parentAncestor) {
-                    try {
-                        parentAncestor = parent.location.origin;
-                    } catch (e) { /* parent location not same-site */ }
-                }
-
-                // Try using document referrer (FF)
-                if (!parentAncestor && document.referrer) {
-                    if (new URL(document.referrer).origin !== window.location.origin) {
-                        parentAncestor = new URL(document.referrer).origin;
-                    }
-                }
-
-                if (parentAncestor && parentOrigins.indexOf(parentAncestor) >= 0) {
-                    parentOrigins = [parentAncestor];
-                } else {
-                    console.warn("Frame registration may cause " + (parentOrigins.length - 1) + " origin error messages in the console due to multiple cors-origins configured.");
-                }
-            }
-
-            if (parentOrigins.length) {
-                console.debug("Checking for parent");
-
-                parentOrigins.forEach(function (parentOrigin) {
-                    if (parentOrigin === "*") {
-                        console.warn("Using wildcard origin for registration.")
-                    }
-
-                    try {
-                        parent.postMessage({ name: "register-child", weavyId: true }, parentOrigin);
-                    } catch (e) {
-                        console.error("Error checking for parent", e);
-                    }
-                })
-            } else {
-                console.warning("Could not find any parent with valid origin.")
-            }
-
-            requestAnimationFrame(function () {
-                window.setTimeout(setLeader, parentOrigins.length ? 2000 : 1);
-            });
-
-        } else {
             setLeader();
-        }
-
     }
 
     this.on = on;
@@ -557,7 +382,6 @@ function WeavyPostal(options) {
     this.unregisterContentWindow = unregisterContentWindow;
     this.unregisterAll = unregisterWeavyId;
     this.postToFrame = postToFrame;
-    this.postToParent = postToParent;
     this.postToSelf = postToSelf;
     this.postToSource = postToSource;
     this.postToChildren = postToChildren;
@@ -565,15 +389,6 @@ function WeavyPostal(options) {
 
     Object.defineProperty(this, "isLeader", {
         get: function () { return _isLeader; }
-    });
-    Object.defineProperty(this, "parentWeavyId", {
-        get: function () { return _parentWeavyId; }
-    });
-    Object.defineProperty(this, "parentName", {
-        get: function () { return _parentName; }
-    });
-    Object.defineProperty(this, "parentOrigin", {
-        get: function () { return _parentOrigin; }
     });
 
     init();

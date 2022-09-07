@@ -1,4 +1,4 @@
-import WeavyUtils from './utils';
+import { eqObjects, asElement, isPlainObject } from './utils';
 
 //console.debug("events.js");
 
@@ -73,7 +73,7 @@ var WeavyEvents = function (rootTarget) {
     var getHandler = { context: context, events: events, selector: selector, handler: handler, originalHandler: originalHandler, external: external };
     var eventHandler = _eventHandlers.filter(function (eventHandler) {
       // Check if all arguments match
-      return WeavyUtils.eqObjects(getHandler, eventHandler, true);
+      return eqObjects(getHandler, eventHandler, true);
     }).pop();
 
     return eventHandler && eventHandler.handler;
@@ -96,7 +96,7 @@ var WeavyEvents = function (rootTarget) {
 
     _eventHandlers.forEach(function (eventHandler, eventHandlerIndex) {
       // Check if all arguments match
-      if (WeavyUtils.eqObjects(removeHandler, eventHandler, true)) {
+      if (eqObjects(removeHandler, eventHandler, true)) {
         handlerRemoved = true;
         _eventHandlers.splice(eventHandlerIndex, 1);
       }
@@ -130,7 +130,7 @@ var WeavyEvents = function (rootTarget) {
           // Normalize on:
           eventHandlerName = eventHandlerName.indexOf("on:") === 0 ? eventHandlerName.split("on:")[1] : eventHandlerName;
           if (eventName === eventHandlerName) {
-            if (!eventHandler.selector || WeavyUtils.eqObjects(eventHandler.selector, data, true)) {
+            if (!eventHandler.selector || eqObjects(eventHandler.selector, data, true)) {
               // Trigger the handler
               var returnData = eventHandler.handler(event, data);
               if (returnData) {
@@ -199,7 +199,7 @@ var WeavyEvents = function (rootTarget) {
         return context;
       }
 
-      var contextElement = WeavyUtils.asElement(context);
+      var contextElement = asElement(context);
       if (contextElement) {
         return contextElement;
       }
@@ -246,12 +246,6 @@ var WeavyEvents = function (rootTarget) {
    * weavyEvents.on("before:options", function(e, options) { ... })
    * weavyEvents.on("options", function(e, options) { ... })
    * weavyEvents.on("after:options", function(e, options) { ... })
-   *  
-   * @example <caption>Realtime event</caption>
-   * weavyEvents.on(weavy.realtime, "eventname", function(e, message) { ... })
-   *   
-   * @example <caption>Connection event</caption>
-   * weavyEvents.on(weavy.realtime, "disconnect.connection", function(e) { ... })
    *   
    * @example <caption>Button event</caption>
    * weavyEvents.on(myButton, "click", function() { ... })
@@ -290,7 +284,7 @@ var WeavyEvents = function (rootTarget) {
       registerEventHandler(args.context, args.events, args.selector, attachedHandler, args.handler, args.external);
 
       if (args.external) {
-        if (typeof args.selector === "string" || WeavyUtils.isPlainObject(args.selector)) {
+        if (typeof args.selector === "string" || isPlainObject(args.selector)) {
           if (typeof args.context.one === "function") {
             args.context.one(args.events, args.selector, attachedHandler);
           } else {
@@ -312,7 +306,7 @@ var WeavyEvents = function (rootTarget) {
       registerEventHandler(args.context, args.events, args.selector, args.handler, args.handler, args.external);
 
       if (args.external) {
-        if (typeof args.selector === "string" || WeavyUtils.isPlainObject(args.selector)) {
+        if (typeof args.selector === "string" || isPlainObject(args.selector)) {
           if (typeof args.context.one === "function") {
             args.context.on(args.events, args.selector, args.handler);
           } else {
@@ -371,7 +365,7 @@ var WeavyEvents = function (rootTarget) {
     if (handlerRemoved && offHandler) {
       if (args.external && args.context) {
 
-        if (typeof args.selector === "string" || WeavyUtils.isPlainObject(args.selector)) {
+        if (typeof args.selector === "string" || isPlainObject(args.selector)) {
           if (typeof args.context.off === "function") {
             args.context.off(args.events, args.selector, offHandler);
           } else {
@@ -407,7 +401,7 @@ var WeavyEvents = function (rootTarget) {
     _eventHandlers.forEach(function (eventHandler) {
       // TODO: Maybe use .off instead?
       if (eventHandler.external && eventHandler.context) {
-        if (typeof eventHandler.selector === "string" || WeavyUtils.isPlainObject(eventHandler.selector)) {
+        if (typeof eventHandler.selector === "string" || isPlainObject(eventHandler.selector)) {
           if (typeof eventHandler.context.off === "function") {
             eventHandler.context.off(eventHandler.events, eventHandler.selector, eventHandler.handler);
           } else {

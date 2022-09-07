@@ -1,5 +1,5 @@
 import Weavy from '../weavy';
-import WeavyPostal from '../utils/postal';
+import WeavyPostal from '../utils/postal-parent';
 import WeavyPromise from '../utils/promise';
 
 /**
@@ -29,7 +29,6 @@ class FileBrowserPlugin {
         loadingStarted = true;
 
         // TODO: Custom file browser url
-        //fileBrowserUrl = wvy.config != null ? (wvy.config.fileBrowser || fileBrowserUrl) : fileBrowserUrl;
         console.debug("Using filebrowser: ", fileBrowserUrl);
                 
         var origin = window.top.document.location.origin;
