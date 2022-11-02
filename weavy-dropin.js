@@ -1,10 +1,10 @@
 export { default } from './src/weavy';
 
 export { 
-    AlertPlugin,
     BadgesPlugin,
     DeeplinksPlugin,
     FilebrowserPlugin,
-    MaximizePlugin
+    MaximizePlugin,
+    ToastPlugin
 } from "./src/plugins";
 

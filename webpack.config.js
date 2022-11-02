@@ -66,17 +66,34 @@ module.exports = (env) => {
     ],
     module: {
       rules: [
+        /* The following two needed for @material */
         {
-          test: /\.[j]s$/,
+          test: /\.m?js/,
+          exclude: [
+            path.resolve(__dirname, "scripts/")
+          ],
+          type: "javascript/auto",
+        },
+        {
+          test: /\.m?js/,
+          exclude: [
+            path.resolve(__dirname, "scripts/")
+          ],
+          resolve: {
+            fullySpecified: false,
+          },
+        },
+        {
+          test: /\.m?js$/,
           include: [
             path.resolve(__dirname, "scripts/")
           ],
-          exclude: [
+          /*exclude: [
               /node_modules/
-          ],
+          ],*/
           use: {
             loader: 'babel-loader'
-          }
+          },
         },
         {
           test: /\.tsx?$/,
@@ -107,7 +124,7 @@ module.exports = (env) => {
       })],
     },
     resolve: {
-      extensions: ['.ts', '.js', '.json'],
+      extensions: ['.ts', '.js', '.json']
     },
   };
 

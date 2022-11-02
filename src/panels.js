@@ -30,7 +30,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
 
   var loadingTimeout = [];
 
-  var _whenClosed = WeavyPromise.resolve();
+
   weavy.debug("creating panel", panelId);
 
   var panelElementId = weavy.getId("panel-container-" + panelId);
@@ -90,13 +90,16 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   panel.panelId = panelId;
   panel.attributes = attributes;
 
+  panel.root = panelsContainer.root;
+
   //var panelNode = Reflect.construct(HTMLElement, [], this.constructor);
   panel.node = document.createElement("div");
 
   panel.node.className = "wy-panel";
 
   if (attributes.className) {
-    panel.node.classList.add(attributes.className);
+    panel.node.classList.add(...(attributes.className.split(" ")));
+    panel.className = attributes.className;
   }
   panel.node.id = panelElementId;
   panel.node.dataset.id = panelId;
@@ -141,6 +144,18 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
     weavy.error("Could not append panel", panelId)
   }
 
+  if (attributes.origin) {
+    panel.origin = attributes.origin;
+  } else if(url) {
+    panel.origin = new URL(url, weavy.url).origin;
+  } else {
+    panel.origin = weavy.url.origin;
+  }
+
+  if (!panelsContainer.origins.has(panel.origin)) {
+    weavy.error("Panel has invalid origin", panel.frame.name);
+  }
+
   // States
 
 
@@ -157,7 +172,8 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   var registerLoading = function (panel) {
     if (!panel.isRegistered) {
       try {
-        WeavyPostal.registerContentWindow(panel.frame.contentWindow.self, panel.frame.name, weavy.getId(), weavy.url.origin);
+
+        WeavyPostal.registerContentWindow(panel.frame.contentWindow.self, panel.frame.name, weavy.getId(), panel.origin);
       } catch (e) {
         weavy.error("Could not register window id", panel.frame.name, e);
       }
@@ -383,6 +399,8 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
     panel.whenLoaded.resolve(panel);
   });
 
+  panel.whenClosed = WeavyPromise.resolve();
+
   // OTHER FUNCTIONS
 
   /**
@@ -475,10 +493,10 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
 
     if (options.controls) {
       if (options.controls === true || options.controls.close) {
-        var close = document.createElement("div");
-        close.className = "wy-icon" + (typeof options.controls.close === "string" ? " " + options.controls.close : "");
+        var close = document.createElement("button");
+        close.className = "wy-button wy-button-icon" + (typeof options.controls.close === "string" ? " " + options.controls.close : "");
         close.title = "Close";
-        close.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" /></svg>';
+        close.innerHTML = '<svg height="24" viewBox="0 0 24 24" width="24" data-icon="close" class="wy-icon"><path d="m19 6.41-1.41-1.41-5.59 5.59-5.59-5.59-1.41 1.41 5.59 5.59-5.59 5.59 1.41 1.41 5.59-5.59 5.59 5.59 1.41-1.41-5.59-5.59z"></path></svg>';
         weavy.on(close, "click", panel.close.bind(panel));
         controls.appendChild(close);
       }
@@ -489,6 +507,21 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
 
   // METHODS
 
+  /**
+   * Tries to focus the panel
+   * 
+   */
+  panel.focus = function (outside) {
+    if (outside) {
+      panel.node.focus();
+    } else {
+      try {
+        panel.frame.contentWindow.focus();
+      } catch (e) {
+        panel.frame.focus();
+      }
+    }
+  }
   /**
    * Open a the panel. The open waits for the [weavy.whenReady]{@link Weavy#whenReady} to complete, then opens the panel.
    *
@@ -522,8 +555,12 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
       var openResult = panel.triggerEvent("panel-open", { panelId: panel.panelId, destination: destination, panels: panelsContainer });
 
       if (openResult !== false && openResult.panelId === panel.panelId) {
-        panel.node.classList.add("wy-open");
         window.requestAnimationFrame(() => panel.node.classList.add("wy-transition"))
+        panel.node.classList.add("wy-open");
+        if (!noHistory) {
+          panel.focus(true)
+          panel.whenLoaded().then(() => panel.focus());
+        }
         return panel.load(openResult.destination, null, null, null, noHistory);
       } else {
         return Promise.reject(new Error("Prevented open " + panel.panelId));
@@ -586,12 +623,13 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
       if (panel.isOpen) {
         weavy.info("closePanel", panel.panelId, noEvent === true ? "no event" : "", noHistory === true ? "no history" : "");
 
-        _whenClosed.reset();
+        panel.whenClosed.reset();
 
         var closePromises = [];
 
+        panel.triggerEvent("before:panel-close", { panelId: panel.panelId, panels: panelsContainer });
         panel.node.classList.remove("wy-open", "wy-transition");
-
+        
         if (noEvent !== true) {
           /**
            * Event triggered when weavy closes a panel.
@@ -602,7 +640,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
            * @property {string} panelId - The id of the panel
            * @property {WeavyPanels~container} panels - The panels container for the panel
            */
-          panel.triggerEvent("panel-close", { panelId: panel.panelId, panels: panelsContainer });
+          panel.triggerEvent("on:panel-close", { panelId: panel.panelId, panels: panelsContainer });
 
           if (noHistory !== true) {
             panel.stateChangedAt = Date.now();
@@ -621,11 +659,12 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
         Promise.all(closePromises).then(() => {
           return panel.postMessage({ name: 'closed' });
         }).then(() => {
-          _whenClosed.resolve()
+          panel.triggerEvent("after:panel-close", { panelId: panel.panelId, panels: panelsContainer });
+          panel.whenClosed.resolve()
         });
       }
 
-      return _whenClosed();
+      return panel.whenClosed();
     });
   };
 
@@ -650,6 +689,10 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
       weavy.log("panel.load", url, replace)
       if (url) {
         url = new URL(url, weavy.url).href;
+
+        if (!panelsContainer.origins.has(new URL(url, weavy.url).origin)) {
+          return Promise.reject("panel url has invalid origin");
+        }
 
         panel.location = url;
 
@@ -746,7 +789,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
        * @returns {Object}
        * @property {string} panelId - The id of the panel being reloaded.
        */
-      panel.triggerEvent("panel-reload", { panelId: panelId });
+      panel.triggerEvent("panel-reload", { panelId: panel.panelId });
     });
   }
 
@@ -799,7 +842,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
             * @returns {Object}
             * @property {string} panelId - Id of the reset panel
             */
-        panel.triggerEvent("panel-reset", { panelId: panelId });
+        panel.triggerEvent("panel-reset", { panelId: panel.panelId });
 
 
         if (isOpen) {
@@ -839,7 +882,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
       return;
     }
 
-    if (new URL(state.location, weavy.url).origin !== weavy.url.origin) {
+    if (!panelsContainer.origins.has(new URL(state.location, weavy.url).origin)) {
       weavy.warn("setState: Invalid url origin.", panelId, new URL(state.location, weavy.url).origin);
       return;
     }
@@ -954,7 +997,7 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
            * @returns {Object}
            * @property {string} panelId - Id of the removed panel
            */
-          panelsContainer.triggerEvent("panel-removed", { panelId: panelId });
+          panelsContainer.triggerEvent("panel-removed", { panelId: panel.panelId });
 
           return Promise.resolve();
         }
@@ -965,7 +1008,37 @@ var WeavyPanel = function (weavy, _panels, panelsContainer, panelId, url, attrib
   };
 
 
+  // CSS
 
+  panel.className ??= ''; 
+
+  /**
+   * Updates the styles on the panel.
+   * 
+   * @function
+   * @name WeavyPanels~panel#postStyles
+   */
+  panel.postStyles = function() {
+    let eventCss = panel.triggerEvent("before:panel-css", { panelId: panel.panelId, css: "" });
+    if (!eventCss) return;
+
+    let styles = panel.root.styles.getAllCSS();
+
+    eventCss = panel.triggerEvent("on:panel-css", { panelId: panel.panelId, css: [eventCss.css, styles].filter((x) => x).join("\n")});
+    if (!eventCss) return;
+
+    let className = [weavy.className, panel.className].filter((x) => x).join(" ");
+
+    weavy.debug("posting panel styles", panel.panelId);
+    panel.postMessage({ name: "styles", id: panel.panelId, css: eventCss.css, className: className });
+
+    panel.triggerEvent("after:panel-css", eventCss);
+  }
+
+  // Send styles to frame on ready and when styles are updated
+  panel.on("panel-ready", panel.postStyles);
+  panel.root.on("root-styles", panel.postStyles);
+  weavy.on("update-class-name update-css", panel.postStyles)
 
 
   // Frame handling
@@ -1037,19 +1110,23 @@ var WeavyPanels = function (weavy) {
 
   var _panels = new Map();
 
+  var _origins = new Set();
+  _origins.add(weavy.url.origin);
+
   /**
    * Creates a new [panel container]{@link WeavyPanels~container}. The container must be attached to the DOM after being created.
    * 
    * @function
    * @name WeavyPanels#createContainer
+   * @param {WeavyRoot}  root - Reference to the root used for the container
    * @param {string} containerId=global - The id of the container.
    * @returns {WeavyPanels~container}
    */
-  function createContainer(containerId) {
+  function createContainer(root, containerId) {
     containerId = containerId || "global";
     var containerElementId = weavy.getId("panels-" + containerId);
 
-    var panelsContainer = { containerId: containerId };
+    var panelsContainer = { containerId: containerId, root: root };
 
     /**
      * Container for multiple panels with common functionality for the panels.
@@ -1066,6 +1143,7 @@ var WeavyPanels = function (weavy) {
      * @property {string} className - DOM class: "panels"
      * @property {function} addPanel - {@link WeavyPanels~container#addPanel} creates a {@link WeavyPanels~panel} in the panel container and returns it.
      * @property {Object} eventParent - Unset. Set the eventParent as a reference to a parent to provide event propagation to that object.
+     * @property {WeavyRoot} root - Refernce to the root for the container.
      * @property {function} on - Binding to the [.on()]{@link WeavyEvents#on} eventhandler of the weavy instance.
      * @property {function} one - Binding to the [.one()]{@link WeavyEvents#one} eventhandler of the weavy instance.
      * @property {function} off - Binding to the [.off()]{@link WeavyEvents#off} eventhandler of the weavy instance.
@@ -1088,6 +1166,10 @@ var WeavyPanels = function (weavy) {
     panelsContainer.one = weavy.events.one.bind(panelsContainer);
     panelsContainer.off = weavy.events.off.bind(panelsContainer);
     panelsContainer.triggerEvent = weavy.events.triggerEvent.bind(panelsContainer);
+
+    Object.defineProperty(panelsContainer, "origins", {
+      get: () => _origins
+    })
 
     _panelsContainers.set(containerId, panelsContainer);
     return panelsContainer;
@@ -1292,6 +1374,9 @@ var WeavyPanels = function (weavy) {
   this.preload = preloadPanels;
   this.resetPanels = resetPanels;
 
+  Object.defineProperty(this, "origins", {
+    get: () => _origins
+  })
 };
 
 /**

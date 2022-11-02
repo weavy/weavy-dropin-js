@@ -6,7 +6,7 @@ import WeavyConsole from './utils/console';
 import WeavyPromise from './utils/promise';
 import WeavyPostal from './utils/postal-parent';
 
-import WeavyRoot from './root';
+import WeavyRoot from './dom-root';
 import WeavyPanels from './panels';
 import WeavyOverlays from './overlays';
 import WeavyNavigation from './navigation';
@@ -63,12 +63,16 @@ var Weavy = function () {
    * @member
    * @property {Element} [container] - Container where weavy should be placed. If no Element is provided, a &lt;weavy&gt; root is created next to the &lt;body&gt;-element.
    * @property {string} [className] - Additional classNames added to weavy.
+   * @property {string} [css] - Custom CSS styles applied in all apps.
    * @property {string} [https=adaptive] - How to enforce https-links. <br> • **force** -  makes urls https.<br> • **adaptive** - enforces https if the calling site uses https.<br> • **default** - makes no change.
    * @property {string} [id] - An id for the instance. A unique id is always generated.
    * @property {function} tokenFactory - The async function returning a string access token passed to {@link WeavyAuthentication}.
    * @property {boolean} [init=true] - Should weavy initialize automatically?
    * @property {boolean} [includePlugins=true] - Whether all registered plugins should be enabled by default. If false, then each plugin needs to be enabled in plugin-options.
    * @property {boolean} [includeStyles=true] - Whether default styles should be enabled. If false, you need to provide a custom stylesheet.
+   * @property {boolean} [includeExternalStyles=true] - Whether external styles should be parsed. If false, you can only provide styles via options.
+   * @property {boolean} [includeFont=true] - Whether fonts applied in containers should be inherited by default. If false, you may have to provide styles for the font.
+   * @property {boolean} [includeThemeColor=true] - Whether a meta theme-color defined in head should be used as default. If false, you may have to provide styles for the colors.
    * @property {string} [lang] - [Language code]{@link https://en.wikipedia.org/wiki/ISO_639-1} of preferred user interface language, e.g. <code>en</code> for English. When set, it must match one of your [configured languages]{@link https://docs.weavy.com/server/localization}.
    * @property {Object|boolean} [logging] - Options for console logging. Set to false to disable.
    * @property {string} [logging.color] - Hex color (#bada55) used for logging. A random color is generated as default.
@@ -205,6 +209,7 @@ var Weavy = function () {
    * @member {URL} Weavy#url
    **/
   Object.defineProperty(weavy, "url", { get: function () { return new URL(_url); } });
+
 
   /**
    * Data about the current user.
@@ -451,6 +456,7 @@ var Weavy = function () {
    * @returns {WeavyApp}
    */
   weavy.app = WeavyApp.select.bind(this, weavy, weavy.apps);
+
 
   // TIMEOUT HANDLING 
 
@@ -779,7 +785,7 @@ var Weavy = function () {
         * @example
         * weavy.on("load", function() {
         *     if (weavy.authentication.isAuthorized()) {
-        *         weavy.alert("Client successfully loaded");
+        *         weavy.dialog("Client successfully loaded");
         *     }
         * });
         * 
@@ -818,7 +824,7 @@ var Weavy = function () {
    * @returns {Weavy~root}
    */
   weavy.createRoot = function (parentSelector, id, eventParent) {
-    // TODO: MAKE CREATEROOT ASYNC
+    // TODO: MAKE CREATEROOT ASYNC?
 
     var rootId = weavy.getId(id);
     var parentElement = asElement(parentSelector);
@@ -832,7 +838,7 @@ var Weavy = function () {
       return _roots.get(rootId);
     }
 
-    var root = new WeavyRoot(weavy, parentElement, rootId, eventParent)
+    var root = new WeavyRoot(weavy, parentElement, rootId, eventParent);
 
     root.on("root-remove", () => _roots.delete(rootId));
 
@@ -853,9 +859,41 @@ var Weavy = function () {
       weavy.nodes.container = root.root;
       weavy.nodes.global = root.container;
 
-      weavy.nodes.global.classList.add("wy-viewport")
+      weavy.root.className = "wy-viewport";
     }
   }
+
+  // CSS
+
+  var _css = weavy.options.css || '';
+
+  /**
+   * General CSS styles.
+   * 
+   * @member {String} Weavy#css
+   **/
+  Object.defineProperty(weavy, "css", { 
+    get: function () { return _css; },
+    set: function (css) {
+      _css = css;
+      weavy.triggerEvent("update-css", { css });
+    }
+  });
+
+  var _className = weavy.options.className || '';
+
+  /**
+   * General CSS className.
+   * 
+   * @member {String} Weavy#className
+   **/
+    Object.defineProperty(weavy, "className", { 
+    get: function () { return _className; },
+    set: function (className) {
+      _className = className;
+      weavy.triggerEvent("update-class-name", { className });
+    }
+  });
 
   // STATUS CHECK
 
@@ -874,7 +912,7 @@ var Weavy = function () {
 
     var whenStatusTimeout = weavy.whenTimeout(3000);
 
-    var alertCookie, alertStorage;
+    var dialogCookie, dialogStorage;
 
     if (!weavy.nodes.statusFrame) {
       weavy.log("Frame Check: Started...");
@@ -889,30 +927,41 @@ var Weavy = function () {
       var requestStorageAccess = function () {
         whenStatusTimeout.cancel();
         
-        var msg = asElement('<span>Third party cookies are required to use this page. </span>')
-        var msgButton = asElement('<button class="wy-button wy-button-primary" style="pointer-events: auto;">Enable cookies</button>');
+        var msgText = asElement('<div class="wy-text">Third party cookies are required to use this page.</div>')
+        var msgButton = asElement('<button class="wy-button">Enable cookies</button>');
+
         var storageAccessWindow;
 
         msgButton.onclick = function () {
           weavy.log('Frame Check: Opening storage access request');
           storageAccessWindow = window.open(new URL('/dropin/client/cookie-access', weavy.url), weavy.getId("storage-access"));
           WeavyPostal.registerContentWindow(storageAccessWindow, weavy.getId("storage-access"), weavy.getId(), weavy.url.origin);
+          weavy.one(WeavyPostal, "ready", { weavyId: weavy.getId(), windowName: weavy.getId("storage-access") }, () => {
+            let styles = weavy.root.styles.getAllCSS();
+            let className = weavy.className;
+            let styleMessage = { name: "styles", id: null, css: styles, className: className };
+            WeavyPostal.postToFrame(weavy.getId("storage-access"), weavy.getId(), styleMessage);
+          })
         };
-        msg.appendChild(msgButton);
 
-        alertStorage = weavy.alert(msg, true);
+        var msg = document.createElement('template').content;
+        msg.append(msgText, msgButton);
+
+        if (weavy.plugins.dialog) {
+          dialogStorage = weavy.dialog(msg, true);
+        }
 
         weavy.one(WeavyPostal, "storage-access-granted", { weavyId: true, domain: weavy.url.origin }, function () {
           weavy.log("Frame Check: Storage access was granted, authenticating and reloading status check.");
 
-          if (alertCookie) {
-            alertCookie.remove();
-            alertCookie = null;
+          if (dialogCookie) {
+            dialogCookie.remove();
+            dialogCookie = null;
           }
 
-          if (alertStorage) {
-            alertStorage.remove();
-            alertStorage = null;
+          if (dialogStorage) {
+            dialogStorage.remove();
+            dialogStorage = null;
           }
           let weavyId = weavy.getId();
 
@@ -933,7 +982,9 @@ var Weavy = function () {
           if (storageAccessAvailable) {
             requestStorageAccess();
           } else if (!storageAccessAvailable) {
-            alertCookie = weavy.alert('Allow third party cookies to use this page.');
+            if (weavy.plugins.toast) {
+              dialogCookie = weavy.dialog('Allow third party cookies to use this page.');
+            }
           }
         } else {
           whenFrameCookiesEnabled.resolve();
@@ -1015,14 +1066,14 @@ var Weavy = function () {
 
         whenStatusTimeout.cancel();
 
-        if (alertCookie) {
-          alertCookie.remove();
-          alertCookie = null;
+        if (dialogCookie) {
+          dialogCookie.remove();
+          dialogCookie = null;
         }
 
-        if (alertStorage) {
-          alertStorage.remove();
-          alertStorage = null;
+        if (dialogStorage) {
+          dialogStorage.remove();
+          dialogStorage = null;
         }
 
         /**
@@ -1199,8 +1250,8 @@ var Weavy = function () {
    * Set plugin options and enable/disable plugins using {@link Weavy#options}.
    * 
    * @example
-   * if (weavy.plugins.alert) {
-   *   weavy.plugins.alert.alert("Alert plugin is enabled");
+   * if (weavy.plugins.toast) {
+   *   weavy.plugins.toast.toast("Alert plugin is enabled");
    * }
    * 
    * @category plugins
@@ -1335,6 +1386,7 @@ Weavy.presets = {
  *     init: true,
  *     includePlugins: true,
  *     includeStyles: true,
+ *     includeFont: true,
  *     preload: true,
  *     url: "/"
  * };
@@ -1351,6 +1403,8 @@ Weavy.presets = {
  * @property {boolean} [init=true] - Should weavy initialize automatically.
  * @property {boolean} [includePlugins=true] - Whether all registered plugins should be enabled by default. If false, then each plugin needs to be enabled in plugin-options.
  * @property {boolean} [includeStyles=true] - Whether default styles should be enabled by default. If false, you need to provide a custom stylesheet instead.
+ * @property {boolean} [includeFont=true] - Whether fonts applied in containers should be inherited by default. If false, you may have to provide styles for the font.
+ * @property {boolean} [includeThemeColor=true] - Whether a meta theme-color defined in head should be used as default. If false, you may have to provide styles for the colors.
  * @property {boolean} [preload] - Start automatic preloading after load
  * @property {boolean} [shadowMode=closed] - Set whether ShadowDOMs should be `closed` (recommended) or `open`.
  * @property {string} url - The URL to the Weavy-installation to connect to.
@@ -1361,6 +1415,8 @@ Weavy.defaults = {
   init: true,
   includePlugins: true,
   includeStyles: true,
+  includeFont: true,
+  includeThemeColor: true,
   plugins: {
     deeplinks: false
   },

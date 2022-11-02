@@ -1,6 +1,5 @@
 import Weavy from '../weavy';
 import WeavyPostal from '../utils/postal-parent';
-import WeavyPromise from '../utils/promise';
 
 /**
  * Filepicker plugin for attaching from Google, O365, Dropbox etc.
@@ -16,80 +15,88 @@ import WeavyPromise from '../utils/promise';
  */
 class FileBrowserPlugin {
   constructor(weavy, options) {
-    var loadingStarted = false;
-    var fileBrowserOrigin = "https://filebrowser.weavycloud.com";
-    var fileBrowserUrl = fileBrowserOrigin + "/index10.html";
-    var filebrowserSrc = "about:blank";
-    var $filebrowserFrame = null;
-    var whenFilebrowserLoaded = new WeavyPromise();
+    var fileBrowserUrl = new URL(options.url);
+    var fileBrowserOrigin = fileBrowserUrl.origin;
+    
+    // TODO fix in panels
+    weavy.panels.origins.add(fileBrowserOrigin);
+
     var panelData = null;
+    var origin = window.top.document.location.origin;
+
+    var filebrowser;
 
     var loadFilebrowser = function () {
-      if (!loadingStarted) {
-        loadingStarted = true;
+      let filebrowserOptions = {};
+      filebrowserOptions.url = fileBrowserUrl.href + "?origin=" + origin + "&v=X&t=" + Date.now().toString() + "&weavyId=" + weavy.getId();
+      filebrowserOptions.overlayId = "filebrowser";
+      filebrowserOptions.type = "filebrowser";
+      filebrowserOptions.className = "wy-modal";
+      filebrowserOptions.title = "Add file from cloud";
 
-        // TODO: Custom file browser url
-        console.debug("Using filebrowser: ", fileBrowserUrl);
-                
-        var origin = window.top.document.location.origin;
-        filebrowserSrc = fileBrowserUrl + "?origin=" + origin + "&v=X&t=" + Date.now().toString() + "&weavyId=" + weavy.getId();
-        
-        if (!$filebrowserFrame || $filebrowserFrame.length === 0) {
+      weavy.log("filebrowser-open", filebrowserOptions);
 
-          //TODO: use weavy.nodes.panels.filebrowser.addPanel()
+      let overlayFilebrowser = weavy.overlays.overlay(filebrowserOptions);
 
-          var id = weavy.getId("filebrowser");
-          $filebrowserFrame = document.createElement("iframe");
-          $filebrowserFrame.id = id;
-          $filebrowserFrame.name = id;
-          $filebrowserFrame.src = filebrowserSrc;
-          $filebrowserFrame.className = "wy-filebrowser-frame";
+      filebrowserInit(overlayFilebrowser);
 
-          weavy.nodes.panels.filebrowser.node.appendChild($filebrowserFrame);
-
-          WeavyPostal.registerContentWindow($filebrowserFrame.contentWindow, id, weavy.getId(), fileBrowserOrigin);
-        }
-        $filebrowserFrame.addEventListener('load', () => {
-          whenFilebrowserLoaded.resolve();
-        }, {
-          once: true,
-        });
-        
+      if (filebrowser.location && filebrowser.location !== filebrowserOptions.url) {
+          filebrowser.reset();
       }
 
-      return whenFilebrowserLoaded.promise();
+      filebrowser.open(filebrowserOptions.url);
+
+      return filebrowser;
     }
 
-    weavy.on(WeavyPostal, "addExternalBlobs", weavy.getId(), function (e) {
-      WeavyPostal.postToSource(panelData, e.data);
+    function filebrowserInit(panel) {
+      if (panel !== filebrowser) {
+        weavy.debug("init filebrowser");
+
+        filebrowser = panel;
+
+        filebrowser.node.classList.remove("wy-modal-full");
+
+        filebrowser.on("message", (e, message) => {
+          if (message.name === "google-selected") {
+            filebrowser.node.classList.add("wy-modal-full");
+          }
+        })
+  
+        filebrowser.on("before:panel-close", () => {
+          filebrowser.loadingStarted(true);
+        })
+
+        filebrowser.on("after:panel-close", () => {
+          filebrowser.node.classList.remove("wy-modal-full");
+        })
+      }
+    }
+
+    weavy.on("panel-added", (e, panelAdded) => {
+      if (panelAdded.attributes.type === "filebrowser") {
+        filebrowserInit(panelAdded.panel)
+      }
+    })
+
+    weavy.on(WeavyPostal, "add-external-blobs", weavy.getId(), function (e) {
+      // Bounce to app
+      if (panelData) {
+        WeavyPostal.postToSource(panelData, e.data);
+      }
     });
 
-    weavy.on(WeavyPostal, "file-browser-open", weavy.getId(), function (e) {
+    weavy.on(WeavyPostal, "request:file-browser-open", weavy.getId(), function (e) {
+      // Remember app source
       panelData = e;
-      loadFilebrowser().then(() => {
-        $filebrowserFrame.style.display = "block";        
-      });
-
+      filebrowser = loadFilebrowser();
     });
-
-    weavy.on(WeavyPostal, "file-browser-close", weavy.getId(), function (e) {
-      $filebrowserFrame.style.display = "none";
-
-    });
-
-    weavy.on("before:build", function () {
-
-      if (!weavy.nodes.panels.filebrowser) {
-        /**
-         * Filebrowser panel container. Attached to {@link Weavy#nodes#global}.
-         * 
-         * @type {WeavyPanels~container}
-         * @category panels
-         * @name Weavy#nodes#panels#filebrowser
-         **/
-        weavy.nodes.panels.filebrowser = weavy.panels.createContainer();
-        weavy.nodes.panels.filebrowser.node.classList.add("wy-filebrowser");
-        weavy.nodes.global.appendChild(weavy.nodes.panels.filebrowser.node);
+    
+    weavy.on(WeavyPostal, "request:file-browser-close", weavy.getId(), function (e) {          
+      filebrowser?.close();
+      // Bounce to app
+      if (panelData) {
+        WeavyPostal.postToSource(panelData, Object.assign({}, e.data, { name: "file-browser-closed"}));
       }
     });
   }
@@ -108,6 +115,7 @@ class FileBrowserPlugin {
  * @type {Object}
  */
 FileBrowserPlugin.defaults = {
+  url: "https://filebrowser.weavy.io/v14/",
 };
 
 // Register and return plugin

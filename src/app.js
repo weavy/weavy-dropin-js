@@ -114,7 +114,9 @@ var WeavyApp = function (weavy, options, data) {
    *   type: "posts",
    *   container: "#myappcontainer",
    *   open: false,
-   *   controls: true
+   *   controls: true,
+   *   className: "wy-dark",
+   *   css: ":root { --wy-theme-color: #ff0000; }"
    * });
    * 
    * @category options
@@ -126,6 +128,8 @@ var WeavyApp = function (weavy, options, data) {
    * @property {Element|jQuery|string} container - The container where the app should be placed.
    * @property {string} type - The kind of app. <br> • posts <br> • files <br> • messenger <br> • notifications <br> • comments <br> • chat
    * @property {boolean} controls - Show or hide the panel controls. Defaults to false.
+   * @property {string} className - Custom className to add to the app.
+   * @property {string} css - Custom CSS to add to the app.
    */
   app.options = options;
 
@@ -264,6 +268,51 @@ var WeavyApp = function (weavy, options, data) {
    */
   app.whenLoaded = new WeavyPromise();
 
+  // CSS
+
+  var _css = options.css || '';
+
+  /**
+   * General CSS styles.
+   * 
+   * @member css
+   * @memberof WeavyApp#
+   * @type {string}
+   **/
+  Object.defineProperty(app, "css", { 
+    get: function () { return _css; },
+    set: function (css) {
+      _css = css;
+      app.whenBuilt().then(() => {
+        app.root.styles.css = css;
+        app.panel.postStyles();
+      })
+    }
+  });
+
+  var _className = options.className || '';
+
+  /**
+   * General CSS className.
+   * 
+   * @member className
+   * @memberof WeavyApp#
+   * @type {string}
+   **/
+    Object.defineProperty(app, "className", { 
+    get: function () { return _className; },
+    set: function (className) {
+      _className = className;
+      app.whenBuilt().then(() => {
+        app.root.className = className
+        app.panel.className = className;
+        app.panel.postStyles()
+      })
+    }
+  });
+
+
+
   /**
    * Configure the app with options or data. If the app has data it will also be built. 
    * Currently existing options are extended with new options.
@@ -388,7 +437,7 @@ var WeavyApp = function (weavy, options, data) {
 
             root.apps = new Set();
 
-            root.container.panels = weavy.panels.createContainer("app-container-" + appId);
+            root.container.panels = weavy.panels.createContainer(app.root, "app-container-" + appId);
             root.container.panels.eventParent = app;
             root.container.appendChild(root.container.panels.node);
           } catch (e) {
@@ -402,8 +451,6 @@ var WeavyApp = function (weavy, options, data) {
 
           var panelId = "app-" + appId;
           var controls = app.options && app.options.controls !== undefined ? app.options.controls : false;
-
-          let whenStylesLoaded = app.root.addStyles(app.options);
 
           app.panel = root.container.panels.addPanel(panelId, app.url, { controls: controls });
 
@@ -471,24 +518,17 @@ var WeavyApp = function (weavy, options, data) {
             app.whenLoaded.resolve(app);
           })
 
-          // Send styles to frame on ready and when styles are updated
-          app.on("panel-ready root-styles", () => app.root.getStyles().then((styles) => {
-            app.postMessage({ name: "styles", id: app.uid, css: styles, className: options.className });
-          }));
+          /**
+           * Triggered when the app panel is built.
+           * 
+           * @category events
+           * @event WeavyApp#app-build
+           * @returns {Object}
+           * @property {WeavyApp} app - The app that fires the event
+           */
+          app.triggerEvent("app-build");
 
-          whenStylesLoaded.then((styles) => {
-            /**
-             * Triggered when the app panel is built.
-             * 
-             * @category events
-             * @event WeavyApp#app-build
-             * @returns {Object}
-             * @property {WeavyApp} app - The app that fires the event
-             */
-            app.triggerEvent("app-build");
-
-            app.whenBuilt.resolve(app);
-          })
+          app.whenBuilt.resolve(app);
         }
       }
 
@@ -669,27 +709,15 @@ WeavyApp.prototype.postMessage = function (message, transfer) {
 }
 
 /**
- * Adds styles to the app using inline css or by loading a stylesheet.
+ * Adds CSS styles to the app using inline css.
  * 
  * @category methods
- * @function WeavyApp#addStyles
- * @param {string|Object} styles - CSS string or styles object
- * @param {string} [styles.css] - Optional css to add.
- * @param {string} [styles.stylesheet] - Optional stylesheet url to load.
- * @returns {boolean} 
+ * @function WeavyApp#addCSS
+ * @param {string} css - CSS string
  */
- WeavyApp.prototype.addStyles = function (styles) {
-  var css, stylesheet;
-
-  if (typeof styles === "string") {
-    css = styles;
-  } else if (isPlainObject(styles)) {
-    css = styles.css;
-    stylesheet = styles.stylesheet;
-  }
-
+ WeavyApp.prototype.addCSS = function (css) {
   return this.whenBuilt.then(() => {
-    return this.root.addStyles({css, stylesheet});
+    this.root.addStyles({ css });
   });
 };
 

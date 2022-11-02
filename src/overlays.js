@@ -1,4 +1,4 @@
-import { assign } from './utils/utils';
+import { assign, classNamesConcat } from './utils/utils';
 import WeavyPostal from './utils/postal-parent';
 
 //console.debug("overlay.js");
@@ -25,10 +25,12 @@ var WeavyOverlays = function (weavy) {
 
     var _overlays = new Map();
 
+    var _container = null;
+
     var overlayClassNames = {
         modal: "wy-modal",
         preview: "wy-dark",
-        overlay: "wy-floating"
+        overlay: "wy-modal-full"
     }
 
     var overlayUrlRegex = {
@@ -36,12 +38,12 @@ var WeavyOverlays = function (weavy) {
         content: /^(.*)(\/content\/[0-9]+\/?)(.+)?$/
     }
 
-
     this.overlay = function (overlayOptions) {
         // Copy all options
         overlayOptions = assign(overlayOptions);
 
-        weavy.log("get overlay", overlayOptions);
+        overlayOptions.controls ??= { close: true };
+
         let overlayId = overlayOptions.overlayId || overlayOptions.type || "overlay";
         let overlay = _overlays.get(overlayId);
 
@@ -49,20 +51,18 @@ var WeavyOverlays = function (weavy) {
             let overlayUrl = new URL(overlayOptions.url, weavy.url);
 
             if (overlayOptions.type) {
-                overlayOptions.className = overlayClassNames[overlayOptions.type] + (overlayOptions.className ? " " + overlayOptions.className : "");
+                overlayOptions.className = classNamesConcat(overlayClassNames[overlayOptions.type], overlayOptions.className);
+            }
+
+            if (weavy.options.className) {
+                overlayOptions.className = classNamesConcat(overlayOptions.className, weavy.options.className);
             }
 
             overlay = weavy.nodes.panels.overlays.addPanel("overlay:" + overlayId, overlayUrl, overlayOptions);
 
-            overlay.on("before:panel-open", function () {
+            overlay.on("panel-open", function () {
                 moveToFront(overlayId);
             });
-
-            // Send styles to frame on ready and when styles are updated
-            // TODO: Move this to panel?
-            overlay.on("panel-ready root-styles", () => weavy.root.getStyles().then((styles) => {
-                overlay.postMessage({ name: "styles", id: overlayId, css: styles, className: overlayOptions.className });
-            }));
 
             _overlays.set(overlayId, overlay);
         } else {
@@ -79,7 +79,7 @@ var WeavyOverlays = function (weavy) {
     /**
      * Tries to move forward an overlay panel
      * 
-     * @property {string} overlayId - The id of the panel to focus;
+     * @property {string} overlayId - The id of the panel to move forward;
      */
     function moveToFront(overlayId) {
         var overlay = _overlays.get(overlayId)
@@ -100,25 +100,6 @@ var WeavyOverlays = function (weavy) {
                 overlay.node.style.transform = "translateZ(-" + i + "rem)";
             }
         });
-    }
-
-    /**
-     * Tries to focus an overlay panel
-     * 
-     * @param {Object} open - Object with panel data
-     * @property {string} open.panelId - The id of the panel to focus;
-     */
-    function focus(overlay) {
-        weavy.log("overlay panels focus", overlay?.panelId, Array.from(_overlays.values()));
-        overlay = overlay || getTopOverlay();
-
-        if (overlay) {
-            try {
-                overlay.frame.contentWindow.focus();
-            } catch (e) {
-                overlay.frame.focus();
-            }
-        }
     }
 
     function reset(overlay) {
@@ -149,7 +130,7 @@ var WeavyOverlays = function (weavy) {
             reset(overlay);
         }
         openUrl = overlayOptions.url;
-        overlay.open(openUrl).then(focus);
+        overlay.open(openUrl);
     });
 
     weavy.on("before:build", function () {
@@ -162,9 +143,11 @@ var WeavyOverlays = function (weavy) {
              * @category panels
              * @name Weavy#nodes#panels#overlays
              **/
-            weavy.nodes.panels.overlays = weavy.panels.createContainer();
+            weavy.nodes.panels.overlays = weavy.panels.createContainer(weavy.root);
             weavy.nodes.panels.overlays.node.classList.add("wy-overlays"); // TODO: change name
             weavy.nodes.global.appendChild(weavy.nodes.panels.overlays.node);
+
+            _container = weavy.nodes.panels.overlays;
         }
     });
 
@@ -184,7 +167,7 @@ var WeavyOverlays = function (weavy) {
             }
 
             sortOverlays();
-            focus();
+            getTopOverlay()?.focus();
         }
     });
 
@@ -209,13 +192,13 @@ var WeavyOverlays = function (weavy) {
             if (request.source && request.source !== overlay.frame.name) {
                 reset(overlay);
             }
-            return overlay.open(url).then(focus);
+            return overlay.open(url);
 
         });
     }
 
     /**
-     * Opens a url in an overlay panel. If the url is an attachment url it will open in the preview panel.
+     * Opens an url in an overlay panel. If the url is an attachment url it will open in the preview panel.
      * 
      * @param {WeavyHistory~panelState} panelState - The url to the overlay page to open
      */
@@ -223,7 +206,7 @@ var WeavyOverlays = function (weavy) {
         return weavy.whenLoaded().then(function () {
             let panelAttributes = assign(panelState.attributes, { title: panelState.title })
             let overlay = weavyOverlays.overlay(panelAttributes);
-            overlay.setState(panelState).then(focus);
+            overlay.setState(panelState);
         });
     }
 
@@ -239,6 +222,15 @@ var WeavyOverlays = function (weavy) {
             return Promise.all(closedOverlays);
         });
     }
+
+    /**
+     * Reference to the panels container for the overlays
+     * @name WeavyOverlays#container
+     * @type {WeavyPanels~container}
+     */
+    Object.defineProperty(this, "container", {
+        get: function() { return _container; }
+    })
 
     // Keyboard handling
 
