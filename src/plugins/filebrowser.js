@@ -22,7 +22,13 @@ class FileBrowserPlugin {
     weavy.panels.origins.add(fileBrowserOrigin);
 
     var panelData = null;
-    var origin = window.top.document.location.origin;
+    var origin = '';
+    
+    try {
+      origin = window.self.document.location.origin;
+    } catch(e) {
+      weavy.error("Filebrowser: Could not read current origin.")
+    }
 
     var filebrowser;
 
