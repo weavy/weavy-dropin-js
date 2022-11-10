@@ -18,16 +18,28 @@ class FileBrowserPlugin {
     var fileBrowserUrl = new URL(options.url);
     var fileBrowserOrigin = fileBrowserUrl.origin;
     
-    // TODO fix in panels
     weavy.panels.origins.add(fileBrowserOrigin);
 
     var panelData = null;
     var origin = '';
     
+    // Get top origin
     try {
-      origin = window.self.document.location.origin;
-    } catch(e) {
-      weavy.error("Filebrowser: Could not read current origin.")
+      if (window.location.ancestorOrigins && 0 < window.location.ancestorOrigins.length) {
+        // Not available in FF, but Google APIs use this
+        origin = window.location.ancestorOrigins[window.location.ancestorOrigins.length - 1];
+      } else {
+        // This may fail due to cors
+        origin = window.top.document.location.origin;
+      } 
+    } catch(e) { /* No worries */}
+    
+    if (!origin) {
+      try {
+        origin = window.self.document.location.origin;
+      } catch(e) {
+        weavy.error("Filebrowser: Could not read current origin.");
+      }
     }
 
     var filebrowser;
